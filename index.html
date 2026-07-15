@@ -78,16 +78,16 @@
   .topbar p { margin: 1px 0 0; font-size: 12.5px; color: var(--muted); }
 
   .layout {
-    display: grid;
-    grid-template-columns: 400px 1fr;
-    gap: 20px;
+    display: flex;
+    flex-direction: column;
     padding: 20px 28px 40px;
-    align-items: start;
-    max-width: 1440px;
+    max-width: 1120px;
     margin: 0 auto;
   }
-  @media (max-width: 960px) {
-    .layout { grid-template-columns: 1fr; padding: 16px; }
+  .col-results { order: 1; }
+  .form-wrap.col-form { order: 2; }
+  @media (max-width: 700px) {
+    .layout { padding: 16px; }
     .topbar { padding: 14px 16px; }
   }
 
@@ -243,7 +243,8 @@
   .kpi.kpi-hero .label { color: rgba(255,255,255,.85); }
 
   /* ---------- Map + table panels ---------- */
-  #map { width: 100%; height: 420px; border-radius: 10px; border: 1px solid var(--border); background: #eef1f6; }
+  #map { width: 100%; height: 600px; border-radius: 10px; border: 1px solid var(--border); background: #eef1f6; }
+  @media (max-width: 700px) { #map { height: 65vh; min-height: 380px; } }
   .legend { display: flex; gap: 16px; margin-top: 12px; flex-wrap: wrap; }
   .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
   .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
@@ -282,6 +283,29 @@
 
   .empty-state { color: var(--muted-soft); font-size: 13.5px; padding: 60px 20px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
   .empty-state svg { width: 34px; height: 34px; stroke: var(--muted-soft); opacity: .6; }
+
+  /* ---------- Collapsible form ---------- */
+  .form-wrap { margin-top: 4px; }
+  .form-toggle {
+    width: 100%; display: flex; align-items: center; gap: 10px;
+    background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 15px 18px; box-shadow: var(--shadow-sm); margin-bottom: 16px; font-family: inherit;
+    transition: border-color .15s;
+  }
+  .form-toggle:hover { border-color: var(--accent); }
+  .form-toggle .badge {
+    width: 30px; height: 30px; border-radius: 9px; background: var(--accent-light); color: var(--accent);
+    display: flex; align-items: center; justify-content: center; flex: none;
+  }
+  .form-toggle .ft-title { font-size: 14px; font-weight: 700; color: var(--text); letter-spacing: -0.01em; }
+  .form-toggle .count {
+    margin-left: auto; font-size: 12px; font-weight: 700; color: var(--accent);
+    background: var(--accent-light); padding: 3px 10px; border-radius: 20px;
+  }
+  .form-toggle .chev { width: 18px; height: 18px; color: var(--muted); transition: transform .2s; }
+  .form-wrap:not(.collapsed) .form-toggle .chev { transform: rotate(180deg); }
+  .form-wrap.collapsed .form-body { display: none; }
+  .form-body .panel:last-child { margin-bottom: 0; }
 
   /* ---------- Theme toggle button ---------- */
   .theme-toggle {
@@ -352,8 +376,15 @@
 </div>
 
 <div class="layout">
-  <!-- LEFT: FORM -->
-  <div>
+  <!-- FORM (collapsible, shown at the bottom via CSS order) -->
+  <div class="form-wrap col-form" id="formWrap">
+    <button class="form-toggle" id="formToggle" aria-expanded="true">
+      <span class="badge"><svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"/></svg></span>
+      <span class="ft-title">Ayarlar &amp; Siparişler</span>
+      <span class="count" id="formStopCount">0 adres</span>
+      <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+    </button>
+    <div class="form-body" id="formBody">
     <div class="panel">
       <div class="panel-head">
         <span class="badge">
@@ -432,10 +463,11 @@
         <div class="progress-label" id="progressLabel"></div>
       </div>
     </div>
-  </div>
+    </div><!-- /form-body -->
+  </div><!-- /form-wrap -->
 
-  <!-- RIGHT: RESULTS -->
-  <div>
+  <!-- RESULTS (shown first via CSS order) -->
+  <div class="col-results">
     <div class="mode-bar" id="modeBar" style="display:none">
       <button class="mode-btn active" id="modeDistance">
         <span class="mode-title"><svg class="icon" viewBox="0 0 24 24"><circle cx="5" cy="6" r="2.3"/><circle cx="19" cy="18" r="2.3"/><path d="M6.8 8C9 10 6 13 9 15s7 1 8.3 2.2"/></svg> En kısa mesafe</span>
@@ -521,6 +553,9 @@
     roundTrip: document.getElementById('roundTrip'),
     stops: document.getElementById('stops'),
     stopCountHint: document.getElementById('stopCountHint'),
+    formWrap: document.getElementById('formWrap'),
+    formToggle: document.getElementById('formToggle'),
+    formStopCount: document.getElementById('formStopCount'),
     calcBtn: document.getElementById('calcBtn'),
     status: document.getElementById('status'),
     progressWrap: document.getElementById('progressWrap'),
@@ -577,6 +612,12 @@
     els.apiKey.type = els.showKey.checked ? 'text' : 'password';
   });
 
+  // Collapsible form (aç / kapa)
+  els.formToggle.addEventListener('click', () => {
+    const collapsed = els.formWrap.classList.toggle('collapsed');
+    els.formToggle.setAttribute('aria-expanded', String(!collapsed));
+  });
+
   // ---------- Theme (gece / gündüz) ----------
   const DARK_MAP_STYLES = [
     { elementType: 'geometry', stylers: [{ color: '#1b2333' }] },
@@ -615,6 +656,7 @@
   function updateStopCountHint() {
     const n = parseStops().length;
     els.stopCountHint.textContent = n + ' adres girildi. Sipariş sayısı fazla olsa da (50, 100+) çalışır.';
+    els.formStopCount.textContent = n + ' adres';
   }
   els.stops.addEventListener('input', updateStopCountHint);
   updateStopCountHint();
@@ -660,7 +702,7 @@
       };
       const script = document.createElement('script');
       script.id = 'gmaps-script';
-      script.src = 'https://maps.googleapis.com/maps/api/js?key=' + encodeURIComponent(apiKey) + '&callback=__onGMapsLoaded';
+      script.src = 'https://maps.googleapis.com/maps/api/js?key=' + encodeURIComponent(apiKey) + '&language=tr&region=DE&callback=__onGMapsLoaded';
       script.async = true;
       script.onerror = () => reject(new Error('Google Maps script yüklenemedi. API key / internet bağlantısını kontrol et.'));
       document.head.appendChild(script);
@@ -672,8 +714,17 @@
     googleMapInstance = new google.maps.Map(els.map, {
       center: { lat: 51.1657, lng: 10.4515 },
       zoom: 6,
-      disableDefaultUI: false,
       clickableIcons: false,
+      mapTypeControl: true,
+      mapTypeControlOptions: {
+        style: google.maps.MapTypeControlStyle.HORIZONTAL_BAR,
+        position: google.maps.ControlPosition.TOP_LEFT,
+        mapTypeIds: ['roadmap', 'satellite', 'hybrid', 'terrain'],
+      },
+      fullscreenControl: true,
+      streetViewControl: true,
+      scaleControl: true,
+      zoomControl: true,
       styles: currentTheme() === 'dark' ? DARK_MAP_STYLES : [],
     });
   }
@@ -1068,7 +1119,8 @@
       els.kpis.style.display = 'grid';
 
       await renderActive();
-      setStatus('✓ Rota hesaplandı — ' + stopAddresses.length + ' durak. Aşağıdan "en kısa mesafe / en kısa süre" seçebilir, durakları sürükleyebilirsin.', 'ok');
+      setStatus('✓ Rota hesaplandı — ' + stopAddresses.length + ' durak. "En kısa mesafe / en kısa süre" seçebilir, durakları sürükleyebilirsin.', 'ok');
+      els.modeBar.scrollIntoView({ behavior: 'smooth', block: 'start' });
     } catch (err) {
       console.error(err);
       setStatus(err.message || 'Beklenmeyen bir hata oluştu.', 'bad');
