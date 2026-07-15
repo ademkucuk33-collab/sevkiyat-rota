@@ -7,7 +7,6 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script>
-  // Set theme before paint to avoid a flash of the wrong theme
   (function(){
     try {
       var t = localStorage.getItem('sevkiyat-theme');
@@ -43,119 +42,56 @@
   body {
     margin: 0;
     font-family: 'Inter', -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
-    background:
-      radial-gradient(1100px 420px at 15% -10%, #eef0ff 0%, transparent 60%),
-      var(--bg);
+    background: radial-gradient(1100px 420px at 15% -10%, #eef0ff 0%, transparent 60%), var(--bg);
     color: var(--text);
     -webkit-font-smoothing: antialiased;
     transition: background-color .25s ease, color .2s ease;
   }
   svg.icon { width: 18px; height: 18px; flex: none; stroke: currentColor; fill: none; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 
-  /* ---------- Top bar ---------- */
   .topbar {
-    display: flex;
-    align-items: center;
-    gap: 14px;
+    display: flex; align-items: center; gap: 14px;
     padding: 18px 28px;
-    background: rgba(255,255,255,.72);
-    backdrop-filter: blur(10px);
+    background: rgba(255,255,255,.72); backdrop-filter: blur(10px);
     border-bottom: 1px solid var(--border);
-    position: sticky;
-    top: 0;
-    z-index: 20;
+    position: sticky; top: 0; z-index: 20;
   }
   .brand-icon {
-    width: 40px; height: 40px;
-    border-radius: 11px;
+    width: 40px; height: 40px; border-radius: 11px;
     background: linear-gradient(135deg, var(--accent), #7c3aed);
-    display: flex; align-items: center; justify-content: center;
-    box-shadow: var(--shadow-sm);
-    flex: none;
+    display: flex; align-items: center; justify-content: center; box-shadow: var(--shadow-sm); flex: none;
   }
   .brand-icon svg { width: 22px; height: 22px; stroke: #fff; }
   .topbar h1 { margin: 0; font-size: 17px; font-weight: 800; letter-spacing: -0.01em; }
   .topbar p { margin: 1px 0 0; font-size: 12.5px; color: var(--muted); }
 
-  .layout {
-    display: flex;
-    flex-direction: column;
-    padding: 20px 28px 40px;
-    max-width: 1120px;
-    margin: 0 auto;
-  }
-  .col-results { order: 1; }
-  .form-wrap.col-form { order: 2; }
-  @media (max-width: 700px) {
-    .layout { padding: 16px; }
-    .topbar { padding: 14px 16px; }
-  }
+  .layout { max-width: 1320px; margin: 0 auto; padding: 20px 28px 40px; }
+  .main-grid { display: grid; grid-template-columns: 430px 1fr; gap: 20px; align-items: start; margin-bottom: 18px; }
+  @media (max-width: 940px) { .main-grid { grid-template-columns: 1fr; } .layout { padding: 16px; } .topbar { padding: 14px 16px; } }
 
-  /* ---------- Panels ---------- */
   .panel {
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 18px 18px 20px;
-    margin-bottom: 18px;
-    box-shadow: var(--shadow-sm);
+    background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 18px; box-shadow: var(--shadow-sm);
   }
-  .panel-head {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 14px;
-  }
+  .panel-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
   .panel-head .badge {
-    width: 30px; height: 30px;
-    border-radius: 9px;
-    background: var(--accent-light);
-    color: var(--accent);
-    display: flex; align-items: center; justify-content: center;
-    flex: none;
+    width: 30px; height: 30px; border-radius: 9px; background: var(--accent-light); color: var(--accent);
+    display: flex; align-items: center; justify-content: center; flex: none;
   }
-  .panel-head h2 {
-    font-size: 13.5px;
-    margin: 0;
-    font-weight: 700;
-    letter-spacing: -0.01em;
-  }
-  .panel-head .step {
-    margin-left: auto;
-    font-size: 11px;
-    font-weight: 700;
-    color: var(--muted-soft);
-    letter-spacing: 0.04em;
+  .panel-head h2 { font-size: 13.5px; margin: 0; font-weight: 700; letter-spacing: -0.01em; }
+  .panel-head .count {
+    margin-left: auto; font-size: 12px; font-weight: 700; color: var(--accent);
+    background: var(--accent-light); padding: 3px 10px; border-radius: 20px;
   }
 
-  label {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    font-size: 12.5px;
-    font-weight: 600;
-    color: #374151;
-    margin: 12px 0 5px;
-  }
-  label:first-of-type { margin-top: 0; }
+  label { display: flex; align-items: center; gap: 5px; font-size: 12.5px; font-weight: 600; color: #374151; margin: 12px 0 5px; }
   input[type=text], input[type=password], input[type=number], textarea {
-    width: 100%;
-    padding: 9px 11px;
-    border: 1.5px solid var(--border);
-    border-radius: 9px;
-    font-size: 13.5px;
-    font-family: inherit;
-    background: var(--panel-soft);
-    color: var(--text);
+    width: 100%; padding: 9px 11px; border: 1.5px solid var(--border); border-radius: 9px;
+    font-size: 13.5px; font-family: inherit; background: var(--panel-soft); color: var(--text);
     transition: border-color .15s, background .15s;
   }
-  input:focus, textarea:focus {
-    outline: none;
-    border-color: var(--accent);
-    background: #fff;
-  }
-  textarea { resize: vertical; min-height: 130px; line-height: 1.5; }
-  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  input:focus, textarea:focus { outline: none; border-color: var(--accent); background: #fff; }
+  textarea { resize: vertical; min-height: 120px; line-height: 1.5; }
   .checkbox-row { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
   .checkbox-row input { width: 15px; height: 15px; accent-color: var(--accent); }
   .checkbox-row label { margin: 0; font-weight: 500; color: var(--text); }
@@ -163,159 +99,118 @@
   button { cursor: pointer; border: none; font-family: inherit; }
   .btn-primary {
     display: flex; align-items: center; justify-content: center; gap: 8px;
-    background: linear-gradient(135deg, var(--accent), var(--accent-dark));
-    color: #fff; width: 100%; margin-top: 16px;
-    border-radius: 10px; padding: 12px 16px;
-    font-size: 14px; font-weight: 700;
-    box-shadow: 0 6px 16px -6px rgba(79, 70, 229, .55);
-    transition: transform .1s, box-shadow .15s;
+    background: linear-gradient(135deg, var(--accent), var(--accent-dark)); color: #fff; width: 100%; margin-top: 14px;
+    border-radius: 10px; padding: 12px 16px; font-size: 14px; font-weight: 700;
+    box-shadow: 0 6px 16px -6px rgba(79, 70, 229, .55); transition: transform .1s, box-shadow .15s;
   }
   .btn-primary:hover { box-shadow: 0 8px 20px -6px rgba(79, 70, 229, .65); }
   .btn-primary:active { transform: translateY(1px); }
   .btn-primary:disabled { background: #b9bec9; box-shadow: none; cursor: not-allowed; }
+  .btn-export {
+    display: none; align-items: center; justify-content: center; gap: 8px; width: 100%; margin-top: 14px;
+    padding: 11px 16px; border-radius: 10px; background: var(--good); color: #fff; font-weight: 700; font-size: 13.5px;
+    box-shadow: 0 6px 16px -8px rgba(5,150,105,.6);
+  }
+  .btn-export:hover { filter: brightness(1.06); }
 
   details { margin-top: 10px; }
-  details summary {
-    cursor: pointer; font-size: 12.5px; color: var(--accent); font-weight: 600;
-    list-style: none; display: flex; align-items: center; gap: 5px;
-  }
+  details summary { cursor: pointer; font-size: 12.5px; color: var(--accent); font-weight: 600; list-style: none; display: flex; align-items: center; gap: 5px; }
   details summary::-webkit-details-marker { display: none; }
   details summary::before { content: '›'; display:inline-block; transition: transform .15s; font-size: 16px; }
   details[open] summary::before { transform: rotate(90deg); }
   details ol, details p { font-size: 12.5px; color: var(--muted); line-height: 1.6; }
   details ol { padding-left: 18px; margin: 8px 0; }
-
   .hint { font-size: 11.5px; color: var(--muted-soft); margin: 4px 0 0; line-height: 1.5; }
 
   .field-euro-wrap { position: relative; }
   .field-euro-wrap input { padding-left: 28px; }
-  .field-euro-wrap::before {
-    content: '€'; position: absolute; left: 11px; top: 50%; transform: translateY(-50%);
-    font-weight: 700; color: var(--muted-soft); font-size: 13.5px; pointer-events: none;
-  }
+  .field-euro-wrap::before { content: '€'; position: absolute; left: 11px; top: 50%; transform: translateY(-50%); font-weight: 700; color: var(--muted-soft); font-size: 13.5px; pointer-events: none; }
 
-  /* ---------- Status / progress ---------- */
   #status { font-size: 12.5px; margin-top: 10px; min-height: 16px; font-weight: 600; display:flex; align-items:center; gap:6px; }
-  .status-ok { color: var(--good); }
-  .status-warn { color: var(--warn); }
-  .status-bad { color: var(--bad); }
+  .status-ok { color: var(--good); } .status-warn { color: var(--warn); } .status-bad { color: var(--bad); }
   .progress-wrap { margin-top: 12px; display: none; }
   .progress-track { height: 6px; border-radius: 4px; background: var(--border-soft); overflow: hidden; }
   .progress-bar { height: 100%; width: 0%; background: linear-gradient(90deg, var(--accent), #7c3aed); transition: width .25s ease; border-radius: 4px; }
   .progress-label { font-size: 11.5px; color: var(--muted); margin-top: 6px; }
 
-  /* ---------- Mode selector ---------- */
-  .mode-bar { display: flex; gap: 12px; margin-bottom: 18px; flex-wrap: wrap; }
-  .mode-btn {
-    flex: 1 1 200px; text-align: left;
-    background: var(--panel); border: 1.5px solid var(--border); border-radius: var(--radius);
-    padding: 13px 15px; box-shadow: var(--shadow-sm);
-    display: flex; flex-direction: column; gap: 3px;
-    transition: border-color .15s, background .15s;
+  /* segmented mode pre-select */
+  .seg-wrap { margin-top: 14px; }
+  .seg-caption { font-size: 12.5px; font-weight: 600; color: #374151; margin-bottom: 6px; display:flex; align-items:center; gap:5px; }
+  .seg { display: flex; gap: 6px; background: var(--panel-soft); border: 1px solid var(--border); border-radius: 10px; padding: 4px; }
+  .seg-btn {
+    flex: 1; display: flex; flex-direction: column; align-items: center; gap: 1px;
+    padding: 8px 6px; border-radius: 7px; background: transparent; font-size: 12.5px; font-weight: 700; color: var(--muted);
+    transition: background .15s, color .15s;
   }
-  .mode-btn .mode-title { display: flex; align-items: center; gap: 7px; font-weight: 700; font-size: 13.5px; color: var(--text); }
-  .mode-btn .mode-title .icon { color: var(--accent); }
-  .mode-btn .mode-sub { font-size: 12px; color: var(--muted); font-weight: 600; padding-left: 26px; }
-  .mode-btn.active { border-color: var(--accent); background: var(--accent-light); }
-  .mode-btn:hover { border-color: var(--accent); }
+  .seg-btn small { font-weight: 600; font-size: 10px; color: var(--muted-soft); }
+  .seg-btn.active { background: var(--panel); color: var(--accent); box-shadow: var(--shadow-sm); }
 
-  /* ---------- KPIs ---------- */
-  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 18px; }
-  .kpi {
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 16px;
-    box-shadow: var(--shadow-sm);
-    position: relative;
-    overflow: hidden;
+  /* fee bar (above map) */
+  .fee-bar {
+    display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
+    background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 12px 16px; margin-bottom: 16px; box-shadow: var(--shadow-sm);
   }
-  .kpi .icon-badge {
-    width: 30px; height: 30px; border-radius: 9px;
-    display: flex; align-items: center; justify-content: center;
-    margin-bottom: 10px;
-  }
-  .kpi.kpi-accent .icon-badge { background: var(--accent-light); color: var(--accent); }
+  .fee-title { font-size: 12.5px; font-weight: 700; color: var(--muted); display: flex; align-items: center; gap: 7px; }
+  .fee-title .badge { width: 26px; height: 26px; border-radius: 8px; background: var(--accent-light); color: var(--accent); display:flex; align-items:center; justify-content:center; }
+  .fee-field { display: flex; flex-direction: column; gap: 3px; }
+  .fee-field label { margin: 0; font-size: 11px; color: var(--muted); font-weight: 600; }
+  .fee-field input { width: 150px; padding: 7px 10px; }
+
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 18px; }
+  .kpi { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow-sm); }
+  .kpi .icon-badge { width: 30px; height: 30px; border-radius: 9px; display: flex; align-items: center; justify-content: center; margin-bottom: 10px; background: var(--accent-light); color: var(--accent); }
   .kpi .label { font-size: 11.5px; color: var(--muted); margin-bottom: 3px; font-weight: 600; }
   .kpi .value { font-size: 21px; font-weight: 800; letter-spacing: -0.01em; }
   .kpi.kpi-hero { background: linear-gradient(135deg, var(--accent), #7c3aed); border: none; color: #fff; }
   .kpi.kpi-hero .icon-badge { background: rgba(255,255,255,.18); color: #fff; }
   .kpi.kpi-hero .label { color: rgba(255,255,255,.85); }
 
-  /* ---------- Map + table panels ---------- */
-  #map { width: 100%; height: 600px; border-radius: 10px; border: 1px solid var(--border); background: #eef1f6; }
-  @media (max-width: 700px) { #map { height: 65vh; min-height: 380px; } }
+  #map { width: 100%; height: 620px; border-radius: 10px; border: 1px solid var(--border); background: #eef1f6; }
+  @media (max-width: 940px) { #map { height: 60vh; min-height: 360px; } }
   .legend { display: flex; gap: 16px; margin-top: 12px; flex-wrap: wrap; }
   .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
   .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
 
-  .reorder-hint { font-size: 12px; color: var(--muted); margin: 0 0 12px; display: flex; align-items: center; gap: 6px; }
+  .reorder-hint { font-size: 12px; color: var(--muted); margin: 14px 0 8px; display: flex; align-items: center; gap: 6px; }
   .reorder-hint .icon { width: 15px; height: 15px; color: var(--accent); }
-
-  table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  thead th {
-    text-align: left; padding: 9px 10px; color: var(--muted); font-weight: 700;
-    font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.05em;
-    border-bottom: 1.5px solid var(--border-soft);
-  }
-  tbody td { padding: 10px; border-bottom: 1px solid var(--border-soft); vertical-align: middle; }
-  tbody tr:last-child td { border-bottom: none; }
-  tbody tr[draggable="true"]:hover { background: var(--panel-soft); }
-  tr.dragging { opacity: .35; }
-  tr.drag-over td { box-shadow: inset 0 2px 0 var(--accent); }
-  .drag-cell { width: 26px; text-align: center; color: var(--muted-soft); cursor: grab; user-select: none; font-size: 15px; line-height: 1; }
+  .stoplist { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .stoplist td { padding: 9px 6px; border-bottom: 1px solid var(--border-soft); vertical-align: middle; }
+  .stoplist tr:last-child td { border-bottom: none; }
+  .stoplist tr[draggable="true"]:hover { background: var(--panel-soft); }
+  .stoplist tr.dragging { opacity: .35; }
+  .stoplist tr.drag-over td { box-shadow: inset 0 2px 0 var(--accent); }
+  .drag-cell { width: 22px; text-align: center; color: var(--muted-soft); cursor: grab; user-select: none; font-size: 14px; }
   .drag-cell:active { cursor: grabbing; }
-  .stop-num {
-    display: inline-flex; align-items: center; justify-content: center;
-    width: 22px; height: 22px; border-radius: 50%;
-    background: var(--accent-light); color: var(--accent);
-    font-size: 11px; font-weight: 800;
-  }
+  .num-cell { width: 26px; }
+  .stop-num { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; background: var(--accent-light); color: var(--accent); font-size: 11px; font-weight: 800; }
   .stop-num.start { background: var(--good-bg); color: var(--good); }
   .stop-num.end { background: var(--bad-bg); color: var(--bad); }
-  .addr-main { font-weight: 600; }
-  .summary-bar {
-    display: flex; gap: 18px; flex-wrap: wrap;
-    margin-top: 14px; padding-top: 14px; border-top: 1px dashed var(--border);
-    font-size: 12.5px; color: var(--muted);
-  }
+  .addr-main { font-weight: 600; line-height: 1.3; }
+  .addr-sub { font-size: 11px; color: var(--muted-soft); margin-top: 1px; }
+  .summary-bar { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 14px; padding-top: 14px; border-top: 1px dashed var(--border); font-size: 12.5px; color: var(--muted); }
   .summary-bar b { color: var(--text); }
 
-  .empty-state { color: var(--muted-soft); font-size: 13.5px; padding: 60px 20px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
-  .empty-state svg { width: 34px; height: 34px; stroke: var(--muted-soft); opacity: .6; }
+  .empty-state { color: var(--muted-soft); font-size: 13.5px; padding: 40px 20px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  .empty-state svg { width: 32px; height: 32px; stroke: var(--muted-soft); opacity: .6; }
 
-  /* ---------- Collapsible form ---------- */
+  /* collapsible settings (bottom) */
   .form-wrap { margin-top: 4px; }
   .form-toggle {
-    width: 100%; display: flex; align-items: center; gap: 10px;
-    background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
-    padding: 15px 18px; box-shadow: var(--shadow-sm); margin-bottom: 16px; font-family: inherit;
-    transition: border-color .15s;
+    width: 100%; display: flex; align-items: center; gap: 10px; background: var(--panel);
+    border: 1px solid var(--border); border-radius: var(--radius); padding: 15px 18px; box-shadow: var(--shadow-sm);
+    margin-bottom: 16px; font-family: inherit; transition: border-color .15s;
   }
   .form-toggle:hover { border-color: var(--accent); }
-  .form-toggle .badge {
-    width: 30px; height: 30px; border-radius: 9px; background: var(--accent-light); color: var(--accent);
-    display: flex; align-items: center; justify-content: center; flex: none;
-  }
+  .form-toggle .badge { width: 30px; height: 30px; border-radius: 9px; background: var(--accent-light); color: var(--accent); display: flex; align-items: center; justify-content: center; flex: none; }
   .form-toggle .ft-title { font-size: 14px; font-weight: 700; color: var(--text); letter-spacing: -0.01em; }
-  .form-toggle .count {
-    margin-left: auto; font-size: 12px; font-weight: 700; color: var(--accent);
-    background: var(--accent-light); padding: 3px 10px; border-radius: 20px;
-  }
-  .form-toggle .chev { width: 18px; height: 18px; color: var(--muted); transition: transform .2s; }
+  .form-toggle .chev { width: 18px; height: 18px; color: var(--muted); transition: transform .2s; margin-left: auto; }
   .form-wrap:not(.collapsed) .form-toggle .chev { transform: rotate(180deg); }
   .form-wrap.collapsed .form-body { display: none; }
-  .form-body .panel:last-child { margin-bottom: 0; }
 
-  /* ---------- Theme toggle button ---------- */
   .theme-toggle {
-    margin-left: auto;
-    width: 38px; height: 38px;
-    border-radius: 10px;
-    background: var(--panel-soft);
-    border: 1px solid var(--border);
-    display: flex; align-items: center; justify-content: center;
-    color: var(--muted);
+    margin-left: auto; width: 38px; height: 38px; border-radius: 10px; background: var(--panel-soft);
+    border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; color: var(--muted);
     transition: background .15s, color .15s, border-color .15s;
   }
   .theme-toggle:hover { color: var(--accent); border-color: var(--accent); }
@@ -323,40 +218,19 @@
   .theme-toggle .moon { display: none; }
   :root[data-theme="dark"] .theme-toggle .sun { display: none; }
   :root[data-theme="dark"] .theme-toggle .moon { display: block; }
-  .panel, .kpi, .mode-btn, input, textarea, .theme-toggle, #map { transition: background-color .25s ease, border-color .25s ease, color .2s ease; }
+  .panel, .kpi, .seg, .fee-bar, .form-toggle, input, textarea, .theme-toggle, #map { transition: background-color .25s ease, border-color .25s ease, color .2s ease; }
 
-  /* ---------- Dark theme ---------- */
   :root[data-theme="dark"] {
-    --bg: #0e1320;
-    --panel: #161d2c;
-    --panel-soft: #1b2333;
-    --border: #2a3448;
-    --border-soft: #222b3c;
-    --text: #e6eaf3;
-    --muted: #98a2b6;
-    --muted-soft: #667089;
-    --accent: #6366f1;
-    --accent-light: rgba(99,102,241,.16);
-    --accent-dark: #4f46e5;
-    --good: #34d399;
-    --good-bg: rgba(16,185,129,.16);
-    --warn: #fbbf24;
-    --warn-bg: rgba(217,119,6,.18);
-    --bad: #f87171;
-    --bad-bg: rgba(220,38,38,.16);
-    --shadow-sm: 0 1px 2px rgba(0,0,0,.35);
-    --shadow-md: 0 2px 4px rgba(0,0,0,.3), 0 12px 28px -8px rgba(0,0,0,.5);
+    --bg: #0e1320; --panel: #161d2c; --panel-soft: #1b2333; --border: #2a3448; --border-soft: #222b3c;
+    --text: #e6eaf3; --muted: #98a2b6; --muted-soft: #667089; --accent: #6366f1; --accent-light: rgba(99,102,241,.16);
+    --accent-dark: #4f46e5; --good: #34d399; --good-bg: rgba(16,185,129,.16); --warn: #fbbf24; --warn-bg: rgba(217,119,6,.18);
+    --bad: #f87171; --bad-bg: rgba(220,38,38,.16); --shadow-sm: 0 1px 2px rgba(0,0,0,.35); --shadow-md: 0 2px 4px rgba(0,0,0,.3), 0 12px 28px -8px rgba(0,0,0,.5);
   }
-  :root[data-theme="dark"] body {
-    background:
-      radial-gradient(1100px 420px at 15% -10%, #1a2140 0%, transparent 60%),
-      var(--bg);
-  }
+  :root[data-theme="dark"] body { background: radial-gradient(1100px 420px at 15% -10%, #1a2140 0%, transparent 60%), var(--bg); }
   :root[data-theme="dark"] .topbar { background: rgba(16,21,34,.72); }
-  :root[data-theme="dark"] input:focus,
-  :root[data-theme="dark"] textarea:focus { background: var(--panel); }
+  :root[data-theme="dark"] input:focus, :root[data-theme="dark"] textarea:focus { background: var(--panel); }
   :root[data-theme="dark"] #map { background: #1b2333; }
-  :root[data-theme="dark"] label { color: #c4cbd9; }
+  :root[data-theme="dark"] label, :root[data-theme="dark"] .seg-caption { color: #c4cbd9; }
 </style>
 </head>
 <body>
@@ -376,82 +250,60 @@
 </div>
 
 <div class="layout">
-  <!-- FORM (collapsible, shown at the bottom via CSS order) -->
-  <div class="form-wrap col-form" id="formWrap">
-    <button class="form-toggle" id="formToggle" aria-expanded="true">
-      <span class="badge"><svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"/></svg></span>
-      <span class="ft-title">Ayarlar &amp; Siparişler</span>
-      <span class="count" id="formStopCount">0 adres</span>
-      <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
-    </button>
-    <div class="form-body" id="formBody">
-    <div class="panel">
-      <div class="panel-head">
-        <span class="badge">
-          <svg class="icon" viewBox="0 0 24 24"><circle cx="7.5" cy="12" r="4.2"/><path d="M11.3 12H21M17 12v3.2M20 12v3.2"/></svg>
-        </span>
-        <h2>Google Maps API Anahtarı</h2>
-        <span class="step">ADIM 1</span>
-      </div>
-      <label for="apiKey">API Key</label>
-      <input type="password" id="apiKey" placeholder="AIza...">
-      <div class="checkbox-row">
-        <input type="checkbox" id="showKey">
-        <label for="showKey">Anahtarı göster</label>
-      </div>
-      <details>
-        <summary>Hangi API'ler açık olmalı?</summary>
-        <ol>
-          <li><b>Maps JavaScript API</b> — haritayı gösterir</li>
-          <li><b>Directions API</b> — rotayı çizer</li>
-          <li><b>Geocoding API</b> — adresleri konuma çevirir</li>
-          <li><b>Distance Matrix API</b> — en kısa mesafe/süre optimizasyonu için (yeni)</li>
-        </ol>
-        <p>Anahtar sadece tarayıcında saklanır (localStorage), hiçbir sunucuya gönderilmez.</p>
-      </details>
+  <div class="kpis" id="kpis" style="display:none">
+    <div class="kpi">
+      <div class="icon-badge"><svg class="icon" viewBox="0 0 24 24"><circle cx="5" cy="6" r="2.3"/><circle cx="19" cy="18" r="2.3"/><path d="M6.8 8C9 10 6 13 9 15s7 1 8.3 2.2"/></svg></div>
+      <div class="label">Toplam Mesafe</div><div class="value" id="kpiKm">–</div>
     </div>
-
-    <div class="panel">
-      <div class="panel-head">
-        <span class="badge">
-          <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.2"/><text x="12" y="16" font-size="11.5" font-weight="800" text-anchor="middle" stroke="none" fill="currentColor">€</text></svg>
-        </span>
-        <h2>Ücret Ayarları</h2>
-        <span class="step">ADIM 2</span>
-      </div>
-      <label for="costPerKm">Km başına ücret</label>
-      <div class="field-euro-wrap">
-        <input type="number" id="costPerKm" value="0.35" step="0.01" min="0">
-      </div>
-      <p class="hint">Toplam ücret = toplam km × km başına ücret. Rota hesaplandıktan sonra otomatik çıkar.</p>
-      <label for="stopMinutes">Durak başına ort. teslimat süresi (dk)</label>
-      <input type="number" id="stopMinutes" value="15" step="1" min="0">
+    <div class="kpi">
+      <div class="icon-badge"><svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.2 2"/></svg></div>
+      <div class="label">Toplam Süre (durak dahil)</div><div class="value" id="kpiTotalTime">–</div>
     </div>
+    <div class="kpi">
+      <div class="icon-badge"><svg class="icon" viewBox="0 0 24 24"><rect x="1" y="7" width="14" height="10" rx="1.5"/><path d="M15 10h4l3 3.2V17h-7z"/><circle cx="6" cy="19" r="1.8"/><circle cx="17.5" cy="19" r="1.8"/></svg></div>
+      <div class="label">Durak Sayısı</div><div class="value" id="kpiStops">–</div>
+    </div>
+    <div class="kpi kpi-hero">
+      <div class="icon-badge"><svg class="icon" viewBox="0 0 24 24" stroke="#fff"><circle cx="12" cy="12" r="9.2"/><text x="12" y="16" font-size="11" font-weight="800" text-anchor="middle" stroke="none" fill="#fff">€</text></svg></div>
+      <div class="label">Toplam Ücret</div><div class="value" id="kpiCost">–</div>
+    </div>
+  </div>
 
+  <div class="main-grid">
+    <!-- LEFT: Rota & Duraklar -->
     <div class="panel">
       <div class="panel-head">
-        <span class="badge">
-          <svg class="icon" viewBox="0 0 24 24"><circle cx="5" cy="6" r="2.3"/><circle cx="19" cy="18" r="2.3"/><path d="M6.8 8C9 10 6 13 9 15s7 1 8.3 2.2"/></svg>
-        </span>
-        <h2>Rota</h2>
-        <span class="step">ADIM 3</span>
+        <span class="badge"><svg class="icon" viewBox="0 0 24 24"><circle cx="5" cy="6" r="2.3"/><circle cx="19" cy="18" r="2.3"/><path d="M6.8 8C9 10 6 13 9 15s7 1 8.3 2.2"/></svg></span>
+        <h2>Rota &amp; Duraklar</h2>
+        <span class="count" id="formStopCount">0 adres</span>
       </div>
+
       <label for="startAddr">Başlangıç adresi</label>
-      <input type="text" id="startAddr" placeholder="ör. Musterstraße 1, 50667 Köln, Almanya">
-
+      <input type="text" id="startAddr" placeholder="ör. Musterstraße 1, 50667 Köln">
       <div class="checkbox-row">
         <input type="checkbox" id="roundTrip" checked>
         <label for="roundTrip">Bitiş = Başlangıç (depoya dönüş)</label>
       </div>
-
       <div id="endAddrWrap" style="display:none">
         <label for="endAddr">Bitiş adresi</label>
-        <input type="text" id="endAddr" placeholder="ör. Hauptstraße 5, 70173 Stuttgart, Almanya">
+        <input type="text" id="endAddr" placeholder="ör. Hauptstraße 5, 70173 Stuttgart">
       </div>
 
       <label for="stops">Müşteri adresleri (her satıra bir adres)</label>
-      <textarea id="stops" placeholder="Beispielweg 12, 60313 Frankfurt&#10;Bahnhofstraße 8, 90402 Nürnberg&#10;Ringstraße 3, 68159 Mannheim&#10;… (50+ adres eklenebilir)"></textarea>
+      <textarea id="stops" placeholder="Beispielweg 12, 60313 Frankfurt&#10;Bahnhofstraße 8, 90402 Nürnberg&#10;Ringstraße 3, 68159 Mannheim"></textarea>
       <p class="hint" id="stopCountHint">0 adres girildi.</p>
+
+      <div class="seg-wrap">
+        <div class="seg-caption">
+          <svg class="icon" viewBox="0 0 24 24" style="width:15px;height:15px"><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/><circle cx="12" cy="12" r="4"/></svg>
+          Önceliğini seç, sonra hesapla
+        </div>
+        <div class="seg" id="modeBar">
+          <button class="seg-btn active" id="modeDistance">En kısa mesafe<small id="modeDistanceSub"></small></button>
+          <button class="seg-btn" id="modeTime">En kısa süre<small id="modeTimeSub"></small></button>
+          <button class="seg-btn" id="modeCustom" style="display:none">Özel<small>elle</small></button>
+        </div>
+      </div>
 
       <button class="btn-primary" id="calcBtn">
         <svg class="icon" viewBox="0 0 24 24" stroke="#fff"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
@@ -462,78 +314,82 @@
         <div class="progress-track"><div class="progress-bar" id="progressBar"></div></div>
         <div class="progress-label" id="progressLabel"></div>
       </div>
-    </div>
-    </div><!-- /form-body -->
-  </div><!-- /form-wrap -->
 
-  <!-- RESULTS (shown first via CSS order) -->
-  <div class="col-results">
-    <div class="mode-bar" id="modeBar" style="display:none">
-      <button class="mode-btn active" id="modeDistance">
-        <span class="mode-title"><svg class="icon" viewBox="0 0 24 24"><circle cx="5" cy="6" r="2.3"/><circle cx="19" cy="18" r="2.3"/><path d="M6.8 8C9 10 6 13 9 15s7 1 8.3 2.2"/></svg> En kısa mesafe</span>
-        <span class="mode-sub" id="modeDistanceSub">—</span>
-      </button>
-      <button class="mode-btn" id="modeTime">
-        <span class="mode-title"><svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.2 2"/></svg> En kısa süre</span>
-        <span class="mode-sub" id="modeTimeSub">—</span>
-      </button>
-      <button class="mode-btn" id="modeCustom" style="display:none">
-        <span class="mode-title"><svg class="icon" viewBox="0 0 24 24"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg> Özel sıra</span>
-        <span class="mode-sub">Elle düzenlenmiş</span>
-      </button>
-    </div>
-
-    <div class="kpis" id="kpis" style="display:none">
-      <div class="kpi kpi-accent">
-        <div class="icon-badge"><svg class="icon" viewBox="0 0 24 24"><circle cx="5" cy="6" r="2.3"/><circle cx="19" cy="18" r="2.3"/><path d="M6.8 8C9 10 6 13 9 15s7 1 8.3 2.2"/></svg></div>
-        <div class="label">Toplam Mesafe</div>
-        <div class="value" id="kpiKm">–</div>
-      </div>
-      <div class="kpi kpi-accent">
-        <div class="icon-badge"><svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.2 2"/></svg></div>
-        <div class="label">Toplam Süre (durak dahil)</div>
-        <div class="value" id="kpiTotalTime">–</div>
-      </div>
-      <div class="kpi kpi-accent">
-        <div class="icon-badge"><svg class="icon" viewBox="0 0 24 24"><rect x="1" y="7" width="14" height="10" rx="1.5"/><path d="M15 10h4l3 3.2V17h-7z"/><circle cx="6" cy="19" r="1.8"/><circle cx="17.5" cy="19" r="1.8"/></svg></div>
-        <div class="label">Durak Sayısı</div>
-        <div class="value" id="kpiStops">–</div>
-      </div>
-      <div class="kpi kpi-hero">
-        <div class="icon-badge"><svg class="icon" viewBox="0 0 24 24" stroke="#fff"><circle cx="12" cy="12" r="9.2"/><text x="12" y="16" font-size="11" font-weight="800" text-anchor="middle" stroke="none" fill="#fff">€</text></svg></div>
-        <div class="label">Toplam Ücret</div>
-        <div class="value" id="kpiCost">–</div>
-      </div>
-    </div>
-
-    <div class="panel">
-      <div class="panel-head">
-        <span class="badge"><svg class="icon" viewBox="0 0 24 24"><path d="M9 3 3 5.5v15L9 18l6 2.5 6-2.5v-15L15 5.5 9 3zM9 3v15M15 5.5v15"/></svg></span>
-        <h2>Harita</h2>
-      </div>
-      <div id="map">
-        <div class="empty-state">
-          <svg viewBox="0 0 24 24" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3 3 5.5v15L9 18l6 2.5 6-2.5v-15L15 5.5 9 3zM9 3v15M15 5.5v15"/></svg>
-          Rota hesaplandığında burada görünecek
-        </div>
-      </div>
-      <div class="legend">
-        <div class="legend-item"><span class="legend-dot" style="background:var(--good)"></span> Başlangıç</div>
-        <div class="legend-item"><span class="legend-dot" style="background:var(--accent)"></span> Teslimat durağı</div>
-        <div class="legend-item"><span class="legend-dot" style="background:var(--bad)"></span> Bitiş</div>
-      </div>
-    </div>
-
-    <div class="panel">
-      <div class="panel-head">
-        <span class="badge"><svg class="icon" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg></span>
-        <h2>Durak Sırası</h2>
-      </div>
       <div id="resultsTable">
         <div class="empty-state">
           <svg viewBox="0 0 24 24" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
           Henüz bir rota hesaplanmadı
         </div>
+      </div>
+
+      <button class="btn-export" id="exportBtn">
+        <svg class="icon" viewBox="0 0 24 24" stroke="#fff"><path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2z"/><path d="M9 13l2 2 2-3"/></svg>
+        Excel'e Aktar
+      </button>
+    </div>
+
+    <!-- RIGHT: Ücret tab + Harita -->
+    <div class="col-right">
+      <div class="fee-bar">
+        <div class="fee-title">
+          <span class="badge"><svg class="icon" viewBox="0 0 24 24" style="width:16px;height:16px"><circle cx="12" cy="12" r="9.2"/><text x="12" y="16" font-size="11" font-weight="800" text-anchor="middle" stroke="none" fill="currentColor">€</text></svg></span>
+          Ücret Ayarları
+        </div>
+        <div class="fee-field">
+          <label for="costPerKm">Km başına ücret (€)</label>
+          <input type="number" id="costPerKm" value="0.35" step="0.01" min="0">
+        </div>
+        <div class="fee-field">
+          <label for="stopMinutes">Durak süresi (dk)</label>
+          <input type="number" id="stopMinutes" value="15" step="1" min="0">
+        </div>
+      </div>
+
+      <div class="panel">
+        <div id="map">
+          <div class="empty-state">
+            <svg viewBox="0 0 24 24" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3 3 5.5v15L9 18l6 2.5 6-2.5v-15L15 5.5 9 3zM9 3v15M15 5.5v15"/></svg>
+            Rota hesaplandığında burada görünecek
+          </div>
+        </div>
+        <div class="legend">
+          <div class="legend-item"><span class="legend-dot" style="background:var(--good)"></span> Başlangıç</div>
+          <div class="legend-item"><span class="legend-dot" style="background:var(--accent)"></span> Teslimat durağı</div>
+          <div class="legend-item"><span class="legend-dot" style="background:var(--bad)"></span> Bitiş</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BOTTOM: collapsible settings (only API) -->
+  <div class="form-wrap" id="formWrap">
+    <button class="form-toggle" id="formToggle" aria-expanded="true">
+      <span class="badge"><svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"/></svg></span>
+      <span class="ft-title">Ayarlar</span>
+      <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+    </button>
+    <div class="form-body" id="formBody">
+      <div class="panel">
+        <div class="panel-head">
+          <span class="badge"><svg class="icon" viewBox="0 0 24 24"><circle cx="7.5" cy="12" r="4.2"/><path d="M11.3 12H21M17 12v3.2M20 12v3.2"/></svg></span>
+          <h2>Google Maps API Anahtarı</h2>
+        </div>
+        <label for="apiKey">API Key</label>
+        <input type="password" id="apiKey" placeholder="AIza...">
+        <div class="checkbox-row">
+          <input type="checkbox" id="showKey">
+          <label for="showKey">Anahtarı göster</label>
+        </div>
+        <details>
+          <summary>Hangi API'ler açık olmalı?</summary>
+          <ol>
+            <li><b>Maps JavaScript API</b> — haritayı gösterir</li>
+            <li><b>Directions API</b> — rotayı çizer</li>
+            <li><b>Geocoding API</b> — adresleri konuma çevirir</li>
+            <li><b>Distance Matrix API</b> — en kısa mesafe/süre optimizasyonu için</li>
+          </ol>
+          <p>Anahtar sadece tarayıcında saklanır (localStorage), hiçbir sunucuya gönderilmez.</p>
+        </details>
       </div>
     </div>
   </div>
@@ -553,10 +409,11 @@
     roundTrip: document.getElementById('roundTrip'),
     stops: document.getElementById('stops'),
     stopCountHint: document.getElementById('stopCountHint'),
+    formStopCount: document.getElementById('formStopCount'),
     formWrap: document.getElementById('formWrap'),
     formToggle: document.getElementById('formToggle'),
-    formStopCount: document.getElementById('formStopCount'),
     calcBtn: document.getElementById('calcBtn'),
+    exportBtn: document.getElementById('exportBtn'),
     status: document.getElementById('status'),
     progressWrap: document.getElementById('progressWrap'),
     progressBar: document.getElementById('progressBar'),
@@ -581,44 +438,29 @@
 
   function loadSettings() {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return;
+      const raw = localStorage.getItem(STORAGE_KEY); if (!raw) return;
       const data = JSON.parse(raw);
       FIELDS_TO_PERSIST.forEach(key => {
-        if (!(key in data)) return;
-        const el = els[key];
-        if (!el) return;
-        if (el.type === 'checkbox') el.checked = data[key];
-        else el.value = data[key];
+        if (!(key in data)) return; const el = els[key]; if (!el) return;
+        if (el.type === 'checkbox') el.checked = data[key]; else el.value = data[key];
       });
       toggleEndAddr();
-    } catch (e) { /* ignore corrupt storage */ }
+    } catch (e) {}
   }
   function saveSettings() {
     const data = {};
-    FIELDS_TO_PERSIST.forEach(key => {
-      const el = els[key];
-      if (!el) return;
-      data[key] = el.type === 'checkbox' ? el.checked : el.value;
-    });
+    FIELDS_TO_PERSIST.forEach(key => { const el = els[key]; if (!el) return; data[key] = el.type === 'checkbox' ? el.checked : el.value; });
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
   }
-
-  function toggleEndAddr() {
-    els.endAddrWrap.style.display = els.roundTrip.checked ? 'none' : 'block';
-  }
+  function toggleEndAddr() { els.endAddrWrap.style.display = els.roundTrip.checked ? 'none' : 'block'; }
   els.roundTrip.addEventListener('change', toggleEndAddr);
-  els.showKey.addEventListener('change', () => {
-    els.apiKey.type = els.showKey.checked ? 'text' : 'password';
-  });
-
-  // Collapsible form (aç / kapa)
+  els.showKey.addEventListener('change', () => { els.apiKey.type = els.showKey.checked ? 'text' : 'password'; });
   els.formToggle.addEventListener('click', () => {
     const collapsed = els.formWrap.classList.toggle('collapsed');
     els.formToggle.setAttribute('aria-expanded', String(!collapsed));
   });
 
-  // ---------- Theme (gece / gündüz) ----------
+  // theme
   const DARK_MAP_STYLES = [
     { elementType: 'geometry', stylers: [{ color: '#1b2333' }] },
     { elementType: 'labels.text.stroke', stylers: [{ color: '#1b2333' }] },
@@ -632,26 +474,17 @@
     { featureType: 'administrative', elementType: 'geometry', stylers: [{ color: '#374561' }] },
     { featureType: 'transit', stylers: [{ visibility: 'off' }] },
   ];
-  function currentTheme() {
-    return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
-  }
-  function applyMapTheme() {
-    if (googleMapInstance) {
-      googleMapInstance.setOptions({ styles: currentTheme() === 'dark' ? DARK_MAP_STYLES : [] });
-    }
-  }
+  function currentTheme() { return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light'; }
+  function applyMapTheme() { if (googleMapInstance) googleMapInstance.setOptions({ styles: currentTheme() === 'dark' ? DARK_MAP_STYLES : [] }); }
   els.themeToggle.addEventListener('click', () => {
     const next = currentTheme() === 'dark' ? 'light' : 'dark';
     document.documentElement.setAttribute('data-theme', next);
-    try { localStorage.setItem('sevkiyat-theme', next); } catch (e) { /* ignore */ }
+    try { localStorage.setItem('sevkiyat-theme', next); } catch (e) {}
     applyMapTheme();
   });
 
   loadSettings();
-  FIELDS_TO_PERSIST.forEach(key => {
-    const el = els[key];
-    if (el) el.addEventListener('change', saveSettings);
-  });
+  FIELDS_TO_PERSIST.forEach(key => { const el = els[key]; if (el) el.addEventListener('change', saveSettings); });
 
   function updateStopCountHint() {
     const n = parseStops().length;
@@ -659,87 +492,44 @@
     els.formStopCount.textContent = n + ' adres';
   }
   els.stops.addEventListener('input', updateStopCountHint);
-  updateStopCountHint();
 
-  function setStatus(msg, kind) {
-    els.status.textContent = msg;
-    els.status.className = kind ? ('status-' + kind) : '';
-  }
-  function setProgress(visible, pct, label) {
-    els.progressWrap.style.display = visible ? 'block' : 'none';
-    if (pct != null) els.progressBar.style.width = pct + '%';
-    if (label != null) els.progressLabel.textContent = label;
-  }
-  function fmtHours(totalSeconds) {
-    if (!isFinite(totalSeconds)) return '—';
-    const h = Math.floor(totalSeconds / 3600);
-    const m = Math.round((totalSeconds % 3600) / 60);
-    return h + ' sa ' + String(m).padStart(2, '0') + ' dk';
-  }
-  function parseStops() {
-    return els.stops.value.split('\n').map(s => s.trim()).filter(Boolean);
-  }
-  function escapeHtml(str) {
-    const div = document.createElement('div');
-    div.textContent = str;
-    return div.innerHTML;
-  }
+  function setStatus(msg, kind) { els.status.textContent = msg; els.status.className = kind ? ('status-' + kind) : ''; }
+  function setProgress(v, pct, label) { els.progressWrap.style.display = v ? 'block' : 'none'; if (pct != null) els.progressBar.style.width = pct + '%'; if (label != null) els.progressLabel.textContent = label; }
+  function fmtHours(s) { if (!isFinite(s)) return '—'; const h = Math.floor(s / 3600); const m = Math.round((s % 3600) / 60); return h + ' sa ' + String(m).padStart(2, '0') + ' dk'; }
+  function parseStops() { return els.stops.value.split('\n').map(s => s.trim()).filter(Boolean); }
+  function escapeHtml(str) { const d = document.createElement('div'); d.textContent = str; return d.innerHTML; }
 
-  // ---------- Google Maps loading ----------
-  let mapsLoadedForKey = null;
-  let googleMapInstance = null;
-  let activeRenderers = [];
-  let activeMarkers = [];
-
+  // ---- Google Maps ----
+  let mapsLoadedForKey = null, googleMapInstance = null, activeRenderers = [], activeMarkers = [];
   function loadGoogleMaps(apiKey) {
     return new Promise((resolve, reject) => {
       if (mapsLoadedForKey === apiKey && window.google && window.google.maps) { resolve(); return; }
-      const prev = document.getElementById('gmaps-script');
-      if (prev) prev.remove();
+      const prev = document.getElementById('gmaps-script'); if (prev) prev.remove();
       window.__onGMapsLoaded = function () { mapsLoadedForKey = apiKey; resolve(); };
-      window.gm_authFailure = function () {
-        reject(new Error('Google Maps kimlik doğrulama hatası: API key geçersiz, kısıtlı veya faturalandırma kapalı olabilir.'));
-      };
-      const script = document.createElement('script');
-      script.id = 'gmaps-script';
-      script.src = 'https://maps.googleapis.com/maps/api/js?key=' + encodeURIComponent(apiKey) + '&language=tr&region=DE&callback=__onGMapsLoaded';
-      script.async = true;
-      script.onerror = () => reject(new Error('Google Maps script yüklenemedi. API key / internet bağlantısını kontrol et.'));
-      document.head.appendChild(script);
+      window.gm_authFailure = function () { reject(new Error('Google Maps kimlik doğrulama hatası: API key geçersiz, kısıtlı veya faturalandırma kapalı olabilir.')); };
+      const s = document.createElement('script'); s.id = 'gmaps-script';
+      s.src = 'https://maps.googleapis.com/maps/api/js?key=' + encodeURIComponent(apiKey) + '&language=tr&region=DE&callback=__onGMapsLoaded';
+      s.async = true; s.onerror = () => reject(new Error('Google Maps script yüklenemedi. API key / internet bağlantısını kontrol et.'));
+      document.head.appendChild(s);
     });
   }
   function ensureMap() {
     if (googleMapInstance) return;
     els.map.innerHTML = '';
     googleMapInstance = new google.maps.Map(els.map, {
-      center: { lat: 51.1657, lng: 10.4515 },
-      zoom: 6,
-      clickableIcons: false,
+      center: { lat: 51.1657, lng: 10.4515 }, zoom: 6, clickableIcons: false,
       mapTypeControl: true,
-      mapTypeControlOptions: {
-        style: google.maps.MapTypeControlStyle.HORIZONTAL_BAR,
-        position: google.maps.ControlPosition.TOP_LEFT,
-        mapTypeIds: ['roadmap', 'satellite', 'hybrid', 'terrain'],
-      },
-      fullscreenControl: true,
-      streetViewControl: true,
-      scaleControl: true,
-      zoomControl: true,
+      mapTypeControlOptions: { style: google.maps.MapTypeControlStyle.HORIZONTAL_BAR, position: google.maps.ControlPosition.TOP_LEFT, mapTypeIds: ['roadmap', 'satellite', 'hybrid', 'terrain'] },
+      fullscreenControl: true, streetViewControl: true, scaleControl: true, zoomControl: true,
       styles: currentTheme() === 'dark' ? DARK_MAP_STYLES : [],
     });
   }
-  function clearMapOverlays() {
-    activeRenderers.forEach(r => r.setMap(null)); activeRenderers = [];
-    activeMarkers.forEach(m => m.setMap(null)); activeMarkers = [];
-  }
+  function clearMapOverlays() { activeRenderers.forEach(r => r.setMap(null)); activeRenderers = []; activeMarkers.forEach(m => m.setMap(null)); activeMarkers = []; }
 
-  // ---------- Geocoding ----------
+  // ---- Geocoding ----
   async function mapWithConcurrency(items, limit, fn) {
-    const results = new Array(items.length);
-    let idx = 0;
-    async function worker() {
-      while (idx < items.length) { const cur = idx++; results[cur] = await fn(items[cur], cur); }
-    }
+    const results = new Array(items.length); let idx = 0;
+    async function worker() { while (idx < items.length) { const cur = idx++; results[cur] = await fn(items[cur], cur); } }
     await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
     return results;
   }
@@ -747,184 +537,100 @@
     attempt = attempt || 0;
     return new Promise((resolve, reject) => {
       geocoder.geocode({ address: address, region: 'de' }, (results, status) => {
-        if (status === 'OK' && results[0]) {
-          const loc = results[0].geometry.location;
-          resolve({ lat: loc.lat(), lng: loc.lng(), formatted: results[0].formatted_address, original: address });
-        } else if (status === 'OVER_QUERY_LIMIT' && attempt < 5) {
-          setTimeout(() => geocodeOne(geocoder, address, attempt + 1).then(resolve, reject), 400 * (attempt + 1));
-        } else {
-          reject(new Error('Adres bulunamadı: "' + address + '" (' + status + ')'));
-        }
+        if (status === 'OK' && results[0]) { const loc = results[0].geometry.location; resolve({ lat: loc.lat(), lng: loc.lng(), formatted: results[0].formatted_address, original: address }); }
+        else if (status === 'OVER_QUERY_LIMIT' && attempt < 5) { setTimeout(() => geocodeOne(geocoder, address, attempt + 1).then(resolve, reject), 400 * (attempt + 1)); }
+        else reject(new Error('Adres bulunamadı: "' + address + '" (' + status + ')'));
       });
     });
   }
   async function geocodeAll(addresses, onProgress) {
-    const geocoder = new google.maps.Geocoder();
-    let completed = 0;
-    return mapWithConcurrency(addresses, 5, async (addr) => {
-      const r = await geocodeOne(geocoder, addr);
-      completed++; onProgress(completed, addresses.length);
-      return r;
-    });
+    const geocoder = new google.maps.Geocoder(); let completed = 0;
+    return mapWithConcurrency(addresses, 5, async (addr) => { const r = await geocodeOne(geocoder, addr); completed++; onProgress(completed, addresses.length); return r; });
   }
 
-  // ---------- Distance Matrix (real driving distance + time) ----------
+  // ---- Distance Matrix ----
   function callMatrix(service, origins, destinations, attempt) {
     attempt = attempt || 0;
     return new Promise((resolve, reject) => {
-      service.getDistanceMatrix(
-        { origins, destinations, travelMode: google.maps.TravelMode.DRIVING },
-        (res, status) => {
-          if (status === 'OK') resolve(res);
-          else if (status === 'OVER_QUERY_LIMIT' && attempt < 5) {
-            setTimeout(() => callMatrix(service, origins, destinations, attempt + 1).then(resolve, reject), 500 * (attempt + 1));
-          } else {
-            reject(new Error('Mesafe matrisi alınamadı (' + status + '). "Distance Matrix API" açık ve anahtar için izinli mi?'));
-          }
-        }
-      );
+      service.getDistanceMatrix({ origins, destinations, travelMode: google.maps.TravelMode.DRIVING }, (res, status) => {
+        if (status === 'OK') resolve(res);
+        else if (status === 'OVER_QUERY_LIMIT' && attempt < 5) setTimeout(() => callMatrix(service, origins, destinations, attempt + 1).then(resolve, reject), 500 * (attempt + 1));
+        else reject(new Error('Mesafe matrisi alınamadı (' + status + '). "Distance Matrix API" açık ve anahtar için izinli mi?'));
+      });
     });
   }
   async function buildMatrices(nodes, onProgress) {
-    const N = nodes.length;
-    const service = new google.maps.DistanceMatrixService();
+    const N = nodes.length; const service = new google.maps.DistanceMatrixService();
     const dist = Array.from({ length: N }, () => new Array(N).fill(Infinity));
     const time = Array.from({ length: N }, () => new Array(N).fill(Infinity));
     const locs = nodes.map(n => new google.maps.LatLng(n.lat, n.lng));
-    const B = 10; // keep origins*destinations <= 100 (client-side limit)
-    const batches = [];
+    const B = 10; const batches = [];
     for (let i = 0; i < N; i += B) batches.push([i, Math.min(i + B, N)]);
-    let done = 0;
-    const total = batches.length * batches.length;
-    for (const [os, oe] of batches) {
-      for (const [ds, de] of batches) {
-        const res = await callMatrix(service, locs.slice(os, oe), locs.slice(ds, de));
-        for (let r = 0; r < res.rows.length; r++) {
-          const els2 = res.rows[r].elements;
-          for (let c = 0; c < els2.length; c++) {
-            const el = els2[c];
-            if (el.status === 'OK') { dist[os + r][ds + c] = el.distance.value; time[os + r][ds + c] = el.duration.value; }
-          }
-        }
-        done++; onProgress(done, total);
-      }
+    let done = 0; const total = batches.length * batches.length;
+    for (const [os, oe] of batches) for (const [ds, de] of batches) {
+      const res = await callMatrix(service, locs.slice(os, oe), locs.slice(ds, de));
+      for (let r = 0; r < res.rows.length; r++) { const row = res.rows[r].elements; for (let c = 0; c < row.length; c++) { const el = row[c]; if (el.status === 'OK') { dist[os + r][ds + c] = el.distance.value; time[os + r][ds + c] = el.duration.value; } } }
+      done++; onProgress(done, total);
     }
     return { dist, time };
   }
 
-  // ---------- TSP (nearest-neighbor + 2-opt) on a real cost matrix ----------
-  // Node 0 = start, node N-1 = end, 1..N-2 = stops. Returns stop order (0-based into stops).
+  // ---- TSP ----
   function solveTSP(matrix) {
-    const N = matrix.length;
-    const S = N - 2;
-    if (S <= 0) return [];
-    const unvisited = new Set();
-    for (let i = 1; i <= S; i++) unvisited.add(i);
-    const seq = [0];
-    let cur = 0;
-    while (unvisited.size) {
-      let best = -1, bestC = Infinity;
-      unvisited.forEach(j => { const c = matrix[cur][j]; if (c < bestC) { bestC = c; best = j; } });
-      if (best === -1) best = unvisited.values().next().value;
-      seq.push(best); unvisited.delete(best); cur = best;
-    }
-    seq.push(N - 1);
-    twoOpt(seq, matrix);
-    return seq.slice(1, -1).map(nodeIdx => nodeIdx - 1);
+    const N = matrix.length, S = N - 2; if (S <= 0) return [];
+    const unv = new Set(); for (let i = 1; i <= S; i++) unv.add(i);
+    const seq = [0]; let cur = 0;
+    while (unv.size) { let best = -1, bc = Infinity; unv.forEach(j => { if (matrix[cur][j] < bc) { bc = matrix[cur][j]; best = j; } }); if (best === -1) best = unv.values().next().value; seq.push(best); unv.delete(best); cur = best; }
+    seq.push(N - 1); twoOpt(seq, matrix);
+    return seq.slice(1, -1).map(x => x - 1);
   }
   function twoOpt(seq, matrix) {
-    const n = seq.length;
-    let improved = true, guard = 0;
-    while (improved && guard < 80) {
-      improved = false; guard++;
-      for (let i = 1; i < n - 2; i++) {
-        for (let k = i + 1; k < n - 1; k++) {
-          const a = seq[i - 1], b = seq[i], c = seq[k], d = seq[k + 1];
-          const before = matrix[a][b] + matrix[c][d];
-          const after = matrix[a][c] + matrix[b][d];
-          if (after + 1e-6 < before) {
-            let lo = i, hi = k;
-            while (lo < hi) { const t = seq[lo]; seq[lo] = seq[hi]; seq[hi] = t; lo++; hi--; }
-            improved = true;
-          }
-        }
+    const n = seq.length; let improved = true, guard = 0;
+    while (improved && guard < 80) { improved = false; guard++;
+      for (let i = 1; i < n - 2; i++) for (let k = i + 1; k < n - 1; k++) {
+        const a = seq[i - 1], b = seq[i], c = seq[k], d = seq[k + 1];
+        if (matrix[a][c] + matrix[b][d] + 1e-6 < matrix[a][b] + matrix[c][d]) { let lo = i, hi = k; while (lo < hi) { const t = seq[lo]; seq[lo] = seq[hi]; seq[hi] = t; lo++; hi--; } improved = true; }
       }
     }
   }
-  // total cost of a stop-order using a given matrix
-  function orderCost(order, matrix) {
-    const nodeSeq = [0, ...order.map(i => i + 1), matrix.length - 1];
-    let t = 0;
-    for (let i = 0; i < nodeSeq.length - 1; i++) t += matrix[nodeSeq[i]][nodeSeq[i + 1]];
-    return t;
-  }
+  function orderCost(order, matrix) { const ns = [0, ...order.map(i => i + 1), matrix.length - 1]; let t = 0; for (let i = 0; i < ns.length - 1; i++) t += matrix[ns[i]][ns[i + 1]]; return t; }
 
-  // ---------- Directions (chained, for drawing + accurate leg totals) ----------
-  function routeChunk(originLL, destLL, waypointLLs) {
+  // ---- Directions ----
+  function routeChunk(o, d, wps) {
     const svc = new google.maps.DirectionsService();
     return new Promise((resolve, reject) => {
-      svc.route(
-        {
-          origin: originLL, destination: destLL,
-          waypoints: waypointLLs.map(ll => ({ location: ll, stopover: true })),
-          optimizeWaypoints: false,
-          travelMode: google.maps.TravelMode.DRIVING,
-        },
-        (result, status) => {
-          if (status === 'OK') resolve(result);
-          else reject(new Error('Rota parçası çizilemedi (' + status + ').'));
-        }
-      );
+      svc.route({ origin: o, destination: d, waypoints: wps.map(ll => ({ location: ll, stopover: true })), optimizeWaypoints: false, travelMode: google.maps.TravelMode.DRIVING },
+        (result, status) => { if (status === 'OK') resolve(result); else reject(new Error('Rota parçası çizilemedi (' + status + ').')); });
     });
   }
   async function buildFullRoute(nodeLLs) {
-    const CHUNK_NODES = 25;
-    const chunks = [];
-    let s = 0;
-    while (s < nodeLLs.length - 1) { const e = Math.min(s + CHUNK_NODES - 1, nodeLLs.length - 1); chunks.push([s, e]); s = e; }
-    const legs = [];
-    const directionsResults = [];
-    for (const [cs, ce] of chunks) {
-      const result = await routeChunk(nodeLLs[cs], nodeLLs[ce], nodeLLs.slice(cs + 1, ce));
-      directionsResults.push(result);
-      result.routes[0].legs.forEach(l => legs.push(l));
-    }
+    const CH = 25; const chunks = []; let s = 0;
+    while (s < nodeLLs.length - 1) { const e = Math.min(s + CH - 1, nodeLLs.length - 1); chunks.push([s, e]); s = e; }
+    const legs = [], directionsResults = [];
+    for (const [cs, ce] of chunks) { const result = await routeChunk(nodeLLs[cs], nodeLLs[ce], nodeLLs.slice(cs + 1, ce)); directionsResults.push(result); result.routes[0].legs.forEach(l => legs.push(l)); }
     return { legs, directionsResults };
   }
   function drawRoute(directionsResults, orderedNodes) {
-    clearMapOverlays();
-    const bounds = new google.maps.LatLngBounds();
+    clearMapOverlays(); const bounds = new google.maps.LatLngBounds();
     directionsResults.forEach(result => {
-      const renderer = new google.maps.DirectionsRenderer({
-        suppressMarkers: true, preserveViewport: true,
-        polylineOptions: { strokeColor: '#4f46e5', strokeWeight: 4, strokeOpacity: 0.85 },
-      });
-      renderer.setMap(googleMapInstance);
-      renderer.setDirections(result);
-      activeRenderers.push(renderer);
+      const renderer = new google.maps.DirectionsRenderer({ suppressMarkers: true, preserveViewport: true, polylineOptions: { strokeColor: '#4f46e5', strokeWeight: 4, strokeOpacity: 0.85 } });
+      renderer.setMap(googleMapInstance); renderer.setDirections(result); activeRenderers.push(renderer);
       result.routes[0].legs.forEach(leg => { bounds.extend(leg.start_location); bounds.extend(leg.end_location); });
     });
     orderedNodes.forEach((node, i) => {
       const isStart = i === 0, isEnd = i === orderedNodes.length - 1;
       const marker = new google.maps.Marker({
-        position: { lat: node.lat, lng: node.lng },
-        map: googleMapInstance,
+        position: { lat: node.lat, lng: node.lng }, map: googleMapInstance,
         label: { text: isStart ? 'A' : isEnd ? 'B' : String(i), color: '#fff', fontSize: '11px', fontWeight: '700' },
-        icon: {
-          path: google.maps.SymbolPath.CIRCLE,
-          scale: isStart || isEnd ? 12 : 10,
-          fillColor: isStart ? '#059669' : isEnd ? '#dc2626' : '#4f46e5',
-          fillOpacity: 1, strokeColor: '#fff', strokeWeight: 2,
-        },
+        icon: { path: google.maps.SymbolPath.CIRCLE, scale: isStart || isEnd ? 12 : 10, fillColor: isStart ? '#059669' : isEnd ? '#dc2626' : '#4f46e5', fillOpacity: 1, strokeColor: '#fff', strokeWeight: 2 },
       });
       activeMarkers.push(marker);
     });
     googleMapInstance.fitBounds(bounds);
   }
 
-  // ---------- App state ----------
-  let state = null;
-  let rendering = false;
+  // ---- State + rendering ----
+  let state = null, rendering = false, selectedMode = 'distance';
 
   function getActiveOrder() {
     if (!state) return [];
@@ -932,109 +638,75 @@
     if (state.activeMode === 'custom' && state.customOrder) return state.customOrder;
     return state.orders.distance;
   }
-
+  function highlightMode() {
+    const m = state ? state.activeMode : selectedMode;
+    els.modeDistance.classList.toggle('active', m === 'distance');
+    els.modeTime.classList.toggle('active', m === 'time');
+    els.modeCustom.classList.toggle('active', m === 'custom');
+  }
   function subLabel(order) {
-    const km = orderCost(order, state.distMatrix) / 1000;
-    const sec = orderCost(order, state.timeMatrix);
-    return (isFinite(km) ? km.toFixed(0) + ' km' : '—') + ' · ' + fmtHours(sec);
+    const km = orderCost(order, state.distMatrix) / 1000; const sec = orderCost(order, state.timeMatrix);
+    return (isFinite(km) ? km.toFixed(0) + ' km' : '—');
   }
   function updateModeBar() {
     els.modeDistanceSub.textContent = subLabel(state.orders.distance);
     els.modeTimeSub.textContent = subLabel(state.orders.time);
-    els.modeDistance.classList.toggle('active', state.activeMode === 'distance');
-    els.modeTime.classList.toggle('active', state.activeMode === 'time');
-    els.modeCustom.classList.toggle('active', state.activeMode === 'custom');
+    highlightMode();
   }
 
   async function renderActive() {
-    if (!state || rendering) return;
-    rendering = true;
-    setModeButtonsDisabled(true);
+    if (!state || rendering) return; rendering = true; setModeDisabled(true);
     try {
       const order = getActiveOrder();
       const nodeSeq = [state.startNode, ...order.map(i => state.stopNodes[i]), state.endNode];
       const nodeLLs = nodeSeq.map(n => ({ lat: n.lat, lng: n.lng }));
       const key = order.join(',');
       setProgress(true, 88, 'Rota çiziliyor...');
-      let dr = state.dirCache[key];
-      if (!dr) { dr = await buildFullRoute(nodeLLs); state.dirCache[key] = dr; }
+      let dr = state.dirCache[key]; if (!dr) { dr = await buildFullRoute(nodeLLs); state.dirCache[key] = dr; }
       drawRoute(dr.directionsResults, nodeSeq);
-
-      let m = 0, s = 0;
-      dr.legs.forEach(l => { m += l.distance.value; s += l.duration.value; });
-      const totalKm = m / 1000;
-      const stopMinutes = parseFloat(els.stopMinutes.value) || 0;
+      let m = 0, s = 0; dr.legs.forEach(l => { m += l.distance.value; s += l.duration.value; });
+      const totalKm = m / 1000; const stopMinutes = parseFloat(els.stopMinutes.value) || 0;
       const totalTimeSeconds = s + order.length * stopMinutes * 60;
-      const costPerKm = parseFloat(els.costPerKm.value) || 0;
-      const totalCost = totalKm * costPerKm;
-
+      const costPerKm = parseFloat(els.costPerKm.value) || 0; const totalCost = totalKm * costPerKm;
       els.kpiKm.textContent = totalKm.toFixed(1) + ' km';
       els.kpiTotalTime.textContent = fmtHours(totalTimeSeconds);
       els.kpiStops.textContent = String(order.length);
       els.kpiCost.textContent = '€' + totalCost.toFixed(2);
-
       renderTable(order, dr.legs, totalKm, s, costPerKm, totalCost);
       updateModeBar();
       setProgress(true, 100, 'Tamamlandı.');
-    } catch (err) {
-      console.error(err);
-      setStatus(err.message || 'Rota çizilemedi.', 'bad');
-    } finally {
-      rendering = false;
-      setModeButtonsDisabled(false);
-      setTimeout(() => setProgress(false), 600);
-    }
+    } catch (err) { console.error(err); setStatus(err.message || 'Rota çizilemedi.', 'bad'); }
+    finally { rendering = false; setModeDisabled(false); setTimeout(() => setProgress(false), 600); }
   }
-
-  function setModeButtonsDisabled(v) {
-    [els.modeDistance, els.modeTime, els.modeCustom].forEach(b => { b.style.pointerEvents = v ? 'none' : ''; b.style.opacity = v ? '.6' : ''; });
-  }
+  function setModeDisabled(v) { [els.modeDistance, els.modeTime, els.modeCustom].forEach(b => { b.style.pointerEvents = v ? 'none' : ''; b.style.opacity = v ? '.6' : ''; }); }
 
   function renderTable(order, legs, totalKm, driveSec, costPerKm, totalCost) {
-    let rows = '';
-    rows += `<tr data-fixed="1">
-      <td><span class="stop-num start">A</span></td>
-      <td class="drag-cell"></td>
-      <td class="addr-main">${escapeHtml(state.startText)}</td>
-      <td>-</td><td>-</td></tr>`;
-    order.forEach((stopIdx, pos) => {
-      const node = state.stopNodes[stopIdx];
-      const leg = legs[pos];
-      rows += `<tr draggable="true" data-pos="${pos}">
-        <td><span class="stop-num">${pos + 1}</span></td>
-        <td class="drag-cell" title="Sürükle-bırak ile taşı">⠿</td>
-        <td class="addr-main">${escapeHtml(node.formatted || node.original)}</td>
-        <td>${(leg.distance.value / 1000).toFixed(1)} km</td>
-        <td>${fmtHours(leg.duration.value)}</td>
+    const row = (numHtml, addr, sub, draggable, pos) => `
+      <tr ${draggable ? `draggable="true" data-pos="${pos}"` : 'data-fixed="1"'}>
+        <td class="num-cell">${numHtml}</td>
+        <td class="drag-cell">${draggable ? '⠿' : ''}</td>
+        <td><div class="addr-main">${escapeHtml(addr)}</div>${sub ? `<div class="addr-sub">${sub}</div>` : ''}</td>
       </tr>`;
+    let rows = '';
+    rows += row('<span class="stop-num start">A</span>', state.startText, 'Başlangıç', false);
+    order.forEach((stopIdx, pos) => {
+      const node = state.stopNodes[stopIdx]; const leg = legs[pos];
+      rows += row(`<span class="stop-num">${pos + 1}</span>`, node.formatted || node.original, `${(leg.distance.value / 1000).toFixed(1)} km · ${fmtHours(leg.duration.value)}`, true, pos);
     });
     const endLeg = legs[legs.length - 1];
-    rows += `<tr data-fixed="1">
-      <td><span class="stop-num end">B</span></td>
-      <td class="drag-cell"></td>
-      <td class="addr-main">${escapeHtml(state.endText)}</td>
-      <td>${(endLeg.distance.value / 1000).toFixed(1)} km</td>
-      <td>${fmtHours(endLeg.duration.value)}</td></tr>`;
-
+    rows += row('<span class="stop-num end">B</span>', state.endText, `Bitiş · ${(endLeg.distance.value / 1000).toFixed(1)} km · ${fmtHours(endLeg.duration.value)}`, false);
     els.resultsTable.innerHTML = `
-      <p class="reorder-hint">
-        <svg class="icon" viewBox="0 0 24 24"><path d="M8 6h8M8 12h8M8 18h8M4 6h.01M4 12h.01M4 18h.01"/></svg>
-        Durakları sürükleyip bırakarak sırayı elle değiştirebilirsin.
-      </p>
-      <table>
-        <thead><tr><th>#</th><th></th><th>Adres</th><th>Bu bacak</th><th>Süre</th></tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
+      <p class="reorder-hint"><svg class="icon" viewBox="0 0 24 24"><path d="M8 6h8M8 12h8M8 18h8M4 6h.01M4 12h.01M4 18h.01"/></svg> Durakları sürükleyip bırakarak sırayı değiştirebilirsin.</p>
+      <table class="stoplist"><tbody>${rows}</tbody></table>
       <div class="summary-bar">
-        <div>Toplam mesafe: <b>${totalKm.toFixed(1)} km</b></div>
-        <div>Sürüş süresi: <b>${fmtHours(driveSec)}</b></div>
-        <div>Km başına ücret: <b>€${costPerKm.toFixed(2)}</b></div>
-        <div>Toplam ücret: <b>€${totalCost.toFixed(2)}</b></div>
+        <div>Toplam: <b>${totalKm.toFixed(1)} km</b></div>
+        <div>Sürüş: <b>${fmtHours(driveSec)}</b></div>
+        <div>Ücret: <b>€${totalCost.toFixed(2)}</b></div>
       </div>`;
     attachDnD();
   }
 
-  // ---------- Drag & drop reordering ----------
+  // drag & drop
   let dragPos = null;
   function attachDnD() {
     const rows = els.resultsTable.querySelectorAll('tr[draggable="true"]');
@@ -1048,20 +720,55 @@
   }
   function moveStop(from, to) {
     if (from == null || from === to) return;
-    const order = getActiveOrder().slice();
-    const [moved] = order.splice(from, 1);
-    order.splice(to, 0, moved);
-    state.customOrder = order;
-    state.activeMode = 'custom';
-    els.modeCustom.style.display = '';
-    renderActive();
+    const order = getActiveOrder().slice(); const [moved] = order.splice(from, 1); order.splice(to, 0, moved);
+    state.customOrder = order; state.activeMode = 'custom'; els.modeCustom.style.display = ''; renderActive();
   }
 
-  els.modeDistance.addEventListener('click', () => { if (state) { state.activeMode = 'distance'; renderActive(); } });
-  els.modeTime.addEventListener('click', () => { if (state) { state.activeMode = 'time'; renderActive(); } });
+  els.modeDistance.addEventListener('click', () => { selectedMode = 'distance'; if (state) { state.activeMode = 'distance'; renderActive(); } else highlightMode(); });
+  els.modeTime.addEventListener('click', () => { selectedMode = 'time'; if (state) { state.activeMode = 'time'; renderActive(); } else highlightMode(); });
   els.modeCustom.addEventListener('click', () => { if (state && state.customOrder) { state.activeMode = 'custom'; renderActive(); } });
 
-  // ---------- Main ----------
+  // ---- Excel (CSV) export ----
+  function csvCell(v) { v = String(v == null ? '' : v); if (/[";\n]/.test(v)) v = '"' + v.replace(/"/g, '""') + '"'; return v; }
+  function exportToExcel() {
+    if (!state) return;
+    const order = getActiveOrder();
+    const dr = state.dirCache[order.join(',')]; const legs = dr ? dr.legs : null;
+    const modeName = state.activeMode === 'time' ? 'En kısa süre' : state.activeMode === 'custom' ? 'Özel sıra' : 'En kısa mesafe';
+    const rows = [];
+    rows.push(['Sevkiyat Rotası — ' + modeName]);
+    rows.push(['Sıra', 'Tür', 'Adres', 'Bu bacak (km)', 'Süre']);
+    rows.push(['A', 'Başlangıç', state.startText, '', '']);
+    let totalMeters = 0, totalSec = 0;
+    order.forEach((stopIdx, pos) => {
+      const node = state.stopNodes[stopIdx]; const leg = legs ? legs[pos] : null;
+      if (leg) { totalMeters += leg.distance.value; totalSec += leg.duration.value; }
+      rows.push([pos + 1, 'Durak', node.formatted || node.original, leg ? (leg.distance.value / 1000).toFixed(1) : '', leg ? fmtHours(leg.duration.value) : '']);
+    });
+    const endLeg = legs ? legs[legs.length - 1] : null;
+    if (endLeg) { totalMeters += endLeg.distance.value; totalSec += endLeg.duration.value; }
+    rows.push(['B', 'Bitiş', state.endText, endLeg ? (endLeg.distance.value / 1000).toFixed(1) : '', endLeg ? fmtHours(endLeg.duration.value) : '']);
+    const totalKm = totalMeters / 1000;
+    const stopMinutes = parseFloat(els.stopMinutes.value) || 0;
+    const totalTimeSec = totalSec + order.length * stopMinutes * 60;
+    const costPerKm = parseFloat(els.costPerKm.value) || 0;
+    rows.push([]);
+    rows.push(['', '', 'Toplam mesafe', totalKm.toFixed(1) + ' km', '']);
+    rows.push(['', '', 'Toplam süre (durak dahil)', fmtHours(totalTimeSec), '']);
+    rows.push(['', '', 'Km başına ücret', '€' + costPerKm.toFixed(2), '']);
+    rows.push(['', '', 'Toplam ücret', '€' + (totalKm * costPerKm).toFixed(2), '']);
+    const csv = '﻿' + rows.map(r => r.map(csvCell).join(';')).join('\r\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const d = new Date(); const stamp = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    a.href = url; a.download = 'sevkiyat-rota-' + stamp + '.csv';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+  els.exportBtn.addEventListener('click', exportToExcel);
+
+  // ---- Main ----
   async function handleCalculate() {
     const apiKey = els.apiKey.value.trim();
     const startAddr = els.startAddr.value.trim();
@@ -1069,68 +776,48 @@
     const endAddr = roundTrip ? startAddr : els.endAddr.value.trim();
     const stopAddresses = parseStops();
 
-    if (!apiKey) { setStatus('Önce Google Maps API anahtarını gir.', 'bad'); return; }
+    if (!apiKey) { setStatus('Önce API anahtarını gir (alttaki "Ayarlar" bölümü).', 'bad'); els.formWrap.classList.remove('collapsed'); return; }
     if (!startAddr) { setStatus('Başlangıç adresi gerekli.', 'bad'); return; }
-    if (!endAddr) { setStatus('Bitiş adresi gerekli (ya da "Bitiş = Başlangıç" seçeneğini işaretle).', 'bad'); return; }
+    if (!endAddr) { setStatus('Bitiş adresi gerekli (ya da "Bitiş = Başlangıç").', 'bad'); return; }
     if (stopAddresses.length === 0) { setStatus('En az bir müşteri adresi gir.', 'bad'); return; }
 
     saveSettings();
-    els.calcBtn.disabled = true;
-    setStatus('Google Maps yükleniyor...', null);
-    setProgress(true, 0, 'Başlatılıyor...');
-
+    els.calcBtn.disabled = true; els.exportBtn.style.display = 'none';
+    setStatus('Google Maps yükleniyor...', null); setProgress(true, 0, 'Başlatılıyor...');
     try {
-      await loadGoogleMaps(apiKey);
-      ensureMap();
-
-      // 1) Geocode
+      await loadGoogleMaps(apiKey); ensureMap();
       const allAddresses = [startAddr, ...stopAddresses, endAddr];
       setProgress(true, 0, 'Adresler konumlandırılıyor (0/' + allAddresses.length + ')...');
-      const geocoded = await geocodeAll(allAddresses, (done, total) =>
-        setProgress(true, Math.round((done / total) * 35), 'Adresler konumlandırılıyor (' + done + '/' + total + ')...'));
-      const startNode = geocoded[0];
-      const endNode = geocoded[geocoded.length - 1];
-      const stopNodes = geocoded.slice(1, -1);
+      const geocoded = await geocodeAll(allAddresses, (done, total) => setProgress(true, Math.round((done / total) * 35), 'Adresler konumlandırılıyor (' + done + '/' + total + ')...'));
+      const startNode = geocoded[0], endNode = geocoded[geocoded.length - 1], stopNodes = geocoded.slice(1, -1);
 
-      // 2) Real driving distance/time matrix
       setProgress(true, 38, 'Gerçek yol mesafeleri hesaplanıyor...');
       const nodes = [startNode, ...stopNodes, endNode];
-      const { dist, time } = await buildMatrices(nodes, (done, total) =>
-        setProgress(true, 38 + Math.round((done / total) * 40), 'Gerçek yol mesafeleri (' + done + '/' + total + ')...'));
+      const { dist, time } = await buildMatrices(nodes, (done, total) => setProgress(true, 38 + Math.round((done / total) * 40), 'Gerçek yol mesafeleri (' + done + '/' + total + ')...'));
 
-      // 3) Optimize order for both objectives
-      setProgress(true, 80, 'En kısa mesafe ve en kısa süre hesaplanıyor...');
-      const orderDistance = solveTSP(dist);
-      const orderTime = solveTSP(time);
+      setProgress(true, 80, 'Sıralama optimize ediliyor...');
+      const orderDistance = solveTSP(dist), orderTime = solveTSP(time);
 
       state = {
         startNode, endNode, stopNodes,
-        startText: startNode.formatted || startAddr,
-        endText: endNode.formatted || endAddr,
+        startText: startNode.formatted || startAddr, endText: endNode.formatted || endAddr,
         distMatrix: dist, timeMatrix: time,
         orders: { distance: orderDistance, time: orderTime },
-        customOrder: null,
-        activeMode: 'distance',
-        dirCache: {},
+        customOrder: null, activeMode: selectedMode, dirCache: {},
       };
 
-      els.modeBar.style.display = 'flex';
       els.modeCustom.style.display = 'none';
       els.kpis.style.display = 'grid';
-
       await renderActive();
-      setStatus('✓ Rota hesaplandı — ' + stopAddresses.length + ' durak. "En kısa mesafe / en kısa süre" seçebilir, durakları sürükleyebilirsin.', 'ok');
-      els.modeBar.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    } catch (err) {
-      console.error(err);
-      setStatus(err.message || 'Beklenmeyen bir hata oluştu.', 'bad');
-    } finally {
-      els.calcBtn.disabled = false;
-      setTimeout(() => setProgress(false), 800);
-    }
+      els.exportBtn.style.display = 'flex';
+      setStatus('✓ Rota hesaplandı — ' + stopAddresses.length + ' durak (' + (selectedMode === 'time' ? 'en kısa süre' : 'en kısa mesafe') + ').', 'ok');
+    } catch (err) { console.error(err); setStatus(err.message || 'Beklenmeyen bir hata oluştu.', 'bad'); }
+    finally { els.calcBtn.disabled = false; setTimeout(() => setProgress(false), 800); }
   }
-
   els.calcBtn.addEventListener('click', handleCalculate);
+
+  updateStopCountHint();
+  highlightMode();
 })();
 </script>
 
