@@ -220,6 +220,17 @@
   .form-wrap:not(.collapsed) .form-toggle .chev { transform: rotate(180deg); }
   .form-wrap.collapsed .form-body { display: none; }
 
+  /* failures panel */
+  .fail-panel { margin-bottom: 18px; }
+  .fail-panel .panel { border-color: var(--bad); }
+  .fail-item { padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px; margin-bottom: 10px; background: var(--panel-soft); }
+  .fail-item:last-child { margin-bottom: 0; }
+  .fail-top { font-size: 13.5px; display: flex; align-items: center; gap: 7px; flex-wrap: wrap; color: var(--text); }
+  .fail-num { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 50%; background: var(--bad-bg); color: var(--bad); font-size: 11px; font-weight: 800; }
+  .fail-addr { font-size: 12.5px; color: var(--text); margin-top: 5px; font-weight: 600; }
+  .fail-prod { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .fail-reason { font-size: 12px; color: var(--bad); margin-top: 5px; font-weight: 600; }
+
   .theme-toggle {
     margin-left: auto; width: 38px; height: 38px; border-radius: 10px; background: var(--panel-soft);
     border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; color: var(--muted);
@@ -253,15 +264,6 @@
   @keyframes floatOrb { 0%,100% { transform: translate(0,0) scale(1); } 33% { transform: translate(40px,-30px) scale(1.1); } 66% { transform: translate(-30px,25px) scale(.95); } }
   :root[data-theme="light"] .bg-fx span { opacity: .2; }
 
-  #cursorGlow {
-    position: fixed; top: 0; left: 0; width: 460px; height: 460px; border-radius: 50%;
-    pointer-events: none; z-index: 3; transform: translate(-50%, -50%);
-    background: radial-gradient(circle, rgba(124,58,237,.20), transparent 62%);
-    opacity: 0; transition: opacity .35s ease; will-change: transform;
-  }
-  :root[data-theme="light"] #cursorGlow { background: radial-gradient(circle, rgba(99,102,241,.13), transparent 62%); }
-  @media (hover: none) { #cursorGlow { display: none; } }
-
   /* liquid-glass cards (falls back to solid if color-mix unsupported) */
   .panel, .fee-bar, .form-toggle, .kpi:not(.kpi-hero) {
     background: color-mix(in srgb, var(--panel) 80%, transparent);
@@ -278,7 +280,6 @@
 <body>
 
 <div class="bg-fx"><span class="o1"></span><span class="o2"></span><span class="o3"></span></div>
-<div id="cursorGlow"></div>
 
 <div class="topbar">
   <div class="brand-icon">
@@ -420,6 +421,19 @@
     </div>
   </div>
 
+  <!-- Bulunamayan / atlanan adresler (only shown when there are failures) -->
+  <div class="fail-panel" id="failPanel" style="display:none">
+    <div class="panel">
+      <div class="panel-head">
+        <span class="badge" style="background:var(--bad-bg);color:var(--bad)"><svg class="icon" viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg></span>
+        <h2>Bulunamayan Adresler</h2>
+        <span class="count" id="failCount" style="background:var(--bad-bg);color:var(--bad)">0</span>
+      </div>
+      <p class="hint">Aşağıdaki siparişlerin adresi haritada bulunamadı, bu yüzden rotaya eklenmedi. Adresleri düzeltip listeyi tekrar yapıştırıp hesaplayabilirsin.</p>
+      <div id="failList"></div>
+    </div>
+  </div>
+
   <!-- BOTTOM: collapsible settings (only API) -->
   <div class="form-wrap" id="formWrap">
     <button class="form-toggle" id="formToggle" aria-expanded="true">
@@ -473,6 +487,9 @@
     formToggle: document.getElementById('formToggle'),
     rdPanel: document.getElementById('rdPanel'),
     rdToggle: document.getElementById('rdToggle'),
+    failPanel: document.getElementById('failPanel'),
+    failCount: document.getElementById('failCount'),
+    failList: document.getElementById('failList'),
     calcBtn: document.getElementById('calcBtn'),
     exportBtn: document.getElementById('exportBtn'),
     status: document.getElementById('status'),
@@ -584,6 +601,35 @@
   function parseStops() { return els.stops.value.split('\n').map(s => s.trim()).filter(Boolean); }
   // An address must contain letters; phone numbers / pure-numeric values do not.
   function hasLetters(s) { return /[a-zA-ZÀ-ɏİı]/.test(s || ''); }
+  function geoReason(status) {
+    switch (status) {
+      case 'ZERO_RESULTS': return 'Google bu adresi bulamadı — adres eksik, yanlış yazılmış veya çok belirsiz olabilir (posta kodu / şehir eksik olabilir).';
+      case 'OVER_QUERY_LIMIT': return 'Google sorgu limiti geçici olarak aşıldı — biraz sonra tekrar dene.';
+      case 'INVALID_REQUEST': return 'Adres boş veya geçersiz.';
+      case 'REQUEST_DENIED': return 'İstek reddedildi — Geocoding API kapalı olabilir ya da anahtar kısıtlaması engelliyor.';
+      case 'UNKNOWN_ERROR': return 'Google tarafında geçici bir hata — tekrar dene.';
+      default: return 'Adres bulunamadı' + (status ? ' (' + status + ')' : '') + '.';
+    }
+  }
+  function renderFailures(failures) {
+    if (!failures || !failures.length) { els.failPanel.style.display = 'none'; els.failList.innerHTML = ''; return; }
+    els.failCount.textContent = failures.length;
+    els.failList.innerHTML = failures.map((f, i) => {
+      const o = f.order;
+      const cust = o.customer ? escapeHtml(o.customer) : '(müşteri belirtilmemiş)';
+      const prods = o.products && o.products.length ? o.products.map(p => escapeHtml(p.name) + (p.qty ? ' ×' + escapeHtml(p.qty) : '')).join(', ') : '—';
+      const meta = [];
+      if (o.date) meta.push('📅 ' + escapeHtml(o.date));
+      if (o.phone) meta.push('📞 ' + escapeHtml(o.phone));
+      return `<div class="fail-item">
+        <div class="fail-top"><span class="fail-num">${i + 1}</span> <b>${cust}</b>${meta.length ? ' · ' + meta.join(' · ') : ''}</div>
+        <div class="fail-addr">📍 ${escapeHtml(o.address || '(boş)')}</div>
+        <div class="fail-prod">📦 ${prods}</div>
+        <div class="fail-reason">⚠ ${escapeHtml(f.reason)}</div>
+      </div>`;
+    }).join('');
+    els.failPanel.style.display = 'block';
+  }
   // Parse pasted order rows (tab-separated: Tarih, Müşteri, Ürün, Adet, Adres, Telefon).
   // Rows with an empty Address column are treated as additional products for the previous stop.
   function parseOrders() {
@@ -656,7 +702,7 @@
       geocoder.geocode({ address: address, region: 'de' }, (results, status) => {
         if (status === 'OK' && results[0]) { const loc = results[0].geometry.location; resolve({ lat: loc.lat(), lng: loc.lng(), formatted: results[0].formatted_address, original: address }); }
         else if (status === 'OVER_QUERY_LIMIT' && attempt < 5) { setTimeout(() => geocodeOne(geocoder, address, attempt + 1).then(resolve, reject), 400 * (attempt + 1)); }
-        else reject(new Error('Adres bulunamadı: "' + address + '" (' + status + ')'));
+        else { const err = new Error('Adres bulunamadı: "' + address + '" (' + status + ')'); err.status = status; reject(err); }
       });
     });
   }
@@ -872,8 +918,9 @@
     const modeName = state.activeMode === 'time' ? 'En kısa süre' : state.activeMode === 'custom' ? 'Özel sıra' : 'En kısa mesafe';
     const rows = [];
     rows.push(['Sevkiyat Rotası — ' + modeName]);
-    rows.push(['Sıra', 'Müşteri', 'Ürünler', 'Adet', 'Adres', 'Telefon', 'Tarih', 'Bu bacak (km)', 'Süre']);
-    rows.push(['A', 'Başlangıç', '', '', state.startText, '', '', '', '']);
+    // Column order: A=Tarih, B=Müşteri, C=Ürünler, D=Adet, E=Adres, F=Telefon, G=Sıra, H=km, I=Süre
+    rows.push(['Tarih', 'Müşteri', 'Ürünler', 'Adet', 'Adres', 'Telefon', 'Sıra', 'Bu bacak (km)', 'Süre']);
+    rows.push(['', 'Başlangıç', '', '', state.startText, '', 'A', '', '']);
     let totalMeters = 0, totalSec = 0;
     order.forEach((stopIdx, pos) => {
       const node = state.stopNodes[stopIdx]; const leg = legs ? legs[pos] : null;
@@ -881,11 +928,11 @@
       if (leg) { totalMeters += leg.distance.value; totalSec += leg.duration.value; }
       const productsStr = info && info.products.length ? info.products.map(p => p.name + (p.qty ? ' x' + p.qty : '')).join(' | ') : '';
       const qtyStr = info && info.products.length ? info.products.reduce((s, p) => s + (parseInt(p.qty, 10) || 0), 0) : '';
-      rows.push([pos + 1, info ? info.customer : '', productsStr, qtyStr, node.formatted || node.original, info ? info.phone : '', info ? info.date : '', leg ? (leg.distance.value / 1000).toFixed(1) : '', leg ? fmtHours(leg.duration.value) : '']);
+      rows.push([info ? info.date : '', info ? info.customer : '', productsStr, qtyStr, node.formatted || node.original, info ? info.phone : '', pos + 1, leg ? (leg.distance.value / 1000).toFixed(1) : '', leg ? fmtHours(leg.duration.value) : '']);
     });
     const endLeg = legs ? legs[legs.length - 1] : null;
     if (endLeg) { totalMeters += endLeg.distance.value; totalSec += endLeg.duration.value; }
-    rows.push(['B', 'Bitiş', '', '', state.endText, '', '', endLeg ? (endLeg.distance.value / 1000).toFixed(1) : '', endLeg ? fmtHours(endLeg.duration.value) : '']);
+    rows.push(['', 'Bitiş', '', '', state.endText, '', 'B', endLeg ? (endLeg.distance.value / 1000).toFixed(1) : '', endLeg ? fmtHours(endLeg.duration.value) : '']);
     const totalKm = totalMeters / 1000;
     const stopMinutes = parseFloat(els.stopMinutes.value) || 0;
     const totalTimeSec = totalSec + order.length * stopMinutes * 60;
@@ -914,17 +961,20 @@
     const endAddr = roundTrip ? startAddr : els.endAddr.value.trim();
     const parsedOrders = parseOrders();
     // Only geocode entries whose "address" actually looks like an address (contains letters).
-    // Phone numbers / pure-numeric values are skipped so they can't break the route.
-    const validOrders = [], skipped = [];
-    parsedOrders.forEach(o => { if (o.address && hasLetters(o.address)) validOrders.push(o); else if (o.address) skipped.push(o.address); });
+    // Phone numbers / pure-numeric values are collected as failures so they can't break the route.
+    const validOrders = [], failures = [];
+    parsedOrders.forEach(o => {
+      if (o.address && hasLetters(o.address)) validOrders.push(o);
+      else failures.push({ order: o, reason: o.address ? 'Adres sütununa telefon/sayı girilmiş görünüyor (harf içermiyor). Doğru adresi yaz.' : 'Adres sütunu boş.' });
+    });
 
     if (!apiKey) { setStatus('Önce API anahtarını gir (alttaki "Ayarlar" bölümü).', 'bad'); els.formWrap.classList.remove('collapsed'); return; }
     if (!startAddr) { setStatus('Başlangıç adresi gerekli.', 'bad'); return; }
     if (!endAddr) { setStatus('Bitiş adresi gerekli (ya da "Bitiş = Başlangıç").', 'bad'); return; }
-    if (validOrders.length === 0) { setStatus('Geçerli adres bulunamadı. "Adres" sütununu kontrol et (telefon numarası adres olarak girilmiş olabilir).', 'bad'); return; }
+    if (validOrders.length === 0) { renderFailures(failures); setStatus('Geçerli adres bulunamadı — aşağıdaki "Bulunamayan Adresler" bölümüne bak.', 'bad'); return; }
 
     saveSettings();
-    els.calcBtn.disabled = true; els.exportBtn.disabled = true;
+    els.calcBtn.disabled = true; els.exportBtn.disabled = true; renderFailures([]);
     setStatus('Google Maps yükleniyor...', null); setProgress(true, 0, 'Başlatılıyor...');
     try {
       await loadGoogleMaps(apiKey); ensureMap();
@@ -937,11 +987,11 @@
       try { startNode = await geocodeOne(geocoder, startAddr); tick(); } catch (e) { throw new Error('Başlangıç adresi bulunamadı: ' + startAddr); }
       if (roundTrip) { endNode = startNode; } else { try { endNode = await geocodeOne(geocoder, endAddr); tick(); } catch (e) { throw new Error('Bitiş adresi bulunamadı: ' + endAddr); } }
 
-      // Fault-tolerant stop geocoding: a bad address is skipped, not fatal
+      // Fault-tolerant stop geocoding: a bad address is skipped (recorded), not fatal
       const stopNodes = [], stopInfo = [];
       await mapWithConcurrency(validOrders, 5, async (o) => {
         try { const node = await geocodeOne(geocoder, o.address); stopNodes.push(node); stopInfo.push(o); }
-        catch (e) { skipped.push(o.address); }
+        catch (e) { failures.push({ order: o, reason: geoReason(e && e.status) }); }
         tick();
       });
       if (stopNodes.length === 0) throw new Error('Hiçbir müşteri adresi bulunamadı. Adresleri kontrol et.');
@@ -965,23 +1015,13 @@
       els.kpis.style.display = 'grid';
       await renderActive();
       els.exportBtn.disabled = false;
-      const warn = skipped.length ? ' ⚠ ' + skipped.length + ' adres atlandı (geçersiz/bulunamadı).' : '';
-      setStatus('✓ Rota hesaplandı — ' + stopNodes.length + ' durak (' + (selectedMode === 'time' ? 'en kısa süre' : 'en kısa mesafe') + ').' + warn, skipped.length ? 'warn' : 'ok');
+      renderFailures(failures);
+      const warn = failures.length ? ' ⚠ ' + failures.length + ' adres atlandı — aşağıdaki "Bulunamayan Adresler" bölümüne bak.' : '';
+      setStatus('✓ Rota hesaplandı — ' + stopNodes.length + ' durak (' + (selectedMode === 'time' ? 'en kısa süre' : 'en kısa mesafe') + ').' + warn, failures.length ? 'warn' : 'ok');
     } catch (err) { console.error(err); setStatus(err.message || 'Beklenmeyen bir hata oluştu.', 'bad'); }
     finally { els.calcBtn.disabled = false; setTimeout(() => setProgress(false), 800); }
   }
   els.calcBtn.addEventListener('click', handleCalculate);
-
-  // Cursor-follow glow
-  (function () {
-    const glow = document.getElementById('cursorGlow');
-    let mx = 0, my = 0, pending = false;
-    window.addEventListener('mousemove', e => {
-      mx = e.clientX; my = e.clientY; glow.style.opacity = '1';
-      if (!pending) { pending = true; requestAnimationFrame(() => { glow.style.transform = 'translate(' + mx + 'px,' + my + 'px) translate(-50%,-50%)'; pending = false; }); }
-    });
-    document.addEventListener('mouseleave', () => { glow.style.opacity = '0'; });
-  })();
 
   updateStopCountHint();
   highlightMode();
