@@ -65,9 +65,10 @@
   .topbar h1 { margin: 0; font-size: 17px; font-weight: 800; letter-spacing: -0.01em; }
   .topbar p { margin: 1px 0 0; font-size: 12.5px; color: var(--muted); }
 
-  .layout { max-width: 1320px; margin: 0 auto; padding: 20px 28px 40px; }
+  .layout { max-width: none; margin: 0; padding: 20px 28px 40px; }
   .main-grid { display: grid; grid-template-columns: 480px 1fr; gap: 20px; align-items: start; margin-bottom: 18px; }
-  @media (max-width: 940px) { .main-grid { grid-template-columns: 1fr; } .layout { padding: 16px; } .topbar { padding: 14px 16px; } }
+  .col-right { position: sticky; top: 88px; align-self: start; }
+  @media (max-width: 940px) { .main-grid { grid-template-columns: 1fr; } .layout { padding: 16px; } .topbar { padding: 14px 16px; } .col-right { position: static; } }
 
   .panel {
     background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
@@ -83,6 +84,11 @@
     margin-left: auto; font-size: 12px; font-weight: 700; color: var(--accent);
     background: var(--accent-light); padding: 3px 10px; border-radius: 20px;
   }
+  .rd-head { width: 100%; background: transparent; border: none; cursor: pointer; font-family: inherit; text-align: left; }
+  .rd-head .chev { width: 18px; height: 18px; margin-left: 8px; color: var(--muted); transition: transform .2s; }
+  .rd-panel:not(.collapsed) .rd-head .chev { transform: rotate(180deg); }
+  .rd-panel.collapsed .rd-head { margin-bottom: 0; }
+  .rd-panel.collapsed .rd-body { display: none; }
 
   label { display: flex; align-items: center; gap: 5px; font-size: 12.5px; font-weight: 600; color: #374151; margin: 12px 0 5px; }
   input[type=text], input[type=password], input[type=number], textarea {
@@ -167,7 +173,7 @@
   .kpi.kpi-hero .icon-badge { background: rgba(255,255,255,.18); color: #fff; }
   .kpi.kpi-hero .label { color: rgba(255,255,255,.85); }
 
-  #map { width: 100%; height: 620px; border-radius: 10px; border: 1px solid var(--border); background: #eef1f6; }
+  #map { width: 100%; height: calc(100vh - 240px); min-height: 380px; max-height: 820px; border-radius: 10px; border: 1px solid var(--border); background: #eef1f6; }
   @media (max-width: 940px) { #map { height: 60vh; min-height: 360px; } }
   .legend { display: flex; gap: 16px; margin-top: 12px; flex-wrap: wrap; }
   .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
@@ -272,12 +278,14 @@
 
   <div class="main-grid">
     <!-- LEFT: Rota & Duraklar -->
-    <div class="panel">
-      <div class="panel-head">
+    <div class="panel rd-panel" id="rdPanel">
+      <button class="panel-head rd-head" id="rdToggle" aria-expanded="true">
         <span class="badge"><svg class="icon" viewBox="0 0 24 24"><circle cx="5" cy="6" r="2.3"/><circle cx="19" cy="18" r="2.3"/><path d="M6.8 8C9 10 6 13 9 15s7 1 8.3 2.2"/></svg></span>
         <h2>Rota &amp; Duraklar</h2>
         <span class="count" id="formStopCount">0 adres</span>
-      </div>
+        <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+      </button>
+      <div class="rd-body" id="rdBody">
 
       <label for="startAddr">Başlangıç adresi</label>
       <input type="text" id="startAddr" placeholder="ör. Musterstraße 1, 50667 Köln">
@@ -327,6 +335,7 @@
         <svg class="icon" viewBox="0 0 24 24" stroke="#fff"><path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2z"/><path d="M9 13l2 2 2-3"/></svg>
         Excel'e Aktar
       </button>
+      </div><!-- /rd-body -->
     </div>
 
     <!-- RIGHT: Ücret tab + Harita -->
@@ -413,6 +422,8 @@
     formStopCount: document.getElementById('formStopCount'),
     formWrap: document.getElementById('formWrap'),
     formToggle: document.getElementById('formToggle'),
+    rdPanel: document.getElementById('rdPanel'),
+    rdToggle: document.getElementById('rdToggle'),
     calcBtn: document.getElementById('calcBtn'),
     exportBtn: document.getElementById('exportBtn'),
     status: document.getElementById('status'),
@@ -459,6 +470,10 @@
   els.formToggle.addEventListener('click', () => {
     const collapsed = els.formWrap.classList.toggle('collapsed');
     els.formToggle.setAttribute('aria-expanded', String(!collapsed));
+  });
+  els.rdToggle.addEventListener('click', () => {
+    const collapsed = els.rdPanel.classList.toggle('collapsed');
+    els.rdToggle.setAttribute('aria-expanded', String(!collapsed));
   });
 
   // theme
