@@ -66,9 +66,12 @@
   .topbar p { margin: 1px 0 0; font-size: 12.5px; color: var(--muted); }
 
   .layout { max-width: none; margin: 0; padding: 20px 28px 40px; }
-  .main-grid { display: grid; grid-template-columns: 480px 1fr; gap: 20px; align-items: start; margin-bottom: 18px; }
+  .main-grid { display: grid; grid-template-columns: var(--left-w, 480px) 12px 1fr; gap: 8px; align-items: start; margin-bottom: 18px; }
   .col-right { position: sticky; top: 88px; align-self: start; }
-  @media (max-width: 940px) { .main-grid { grid-template-columns: 1fr; } .layout { padding: 16px; } .topbar { padding: 14px 16px; } .col-right { position: static; } }
+  .col-resizer { align-self: stretch; cursor: col-resize; position: relative; min-height: 200px; }
+  .col-resizer::before { content: ''; position: absolute; left: 50%; top: 8px; bottom: 8px; transform: translateX(-50%); width: 3px; background: var(--border); border-radius: 3px; transition: background .15s, box-shadow .15s; }
+  .col-resizer:hover::before, .col-resizer.dragging::before { background: var(--accent); box-shadow: 0 0 12px 1px var(--accent); }
+  @media (max-width: 940px) { .main-grid { grid-template-columns: 1fr; } .layout { padding: 16px; } .topbar { padding: 14px 16px; } .col-right { position: static; } .col-resizer { display: none; } }
 
   .panel {
     background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
@@ -79,7 +82,8 @@
     width: 30px; height: 30px; border-radius: 9px; background: var(--accent-light); color: var(--accent);
     display: flex; align-items: center; justify-content: center; flex: none;
   }
-  .panel-head h2 { font-size: 13.5px; margin: 0; font-weight: 700; letter-spacing: -0.01em; }
+  .panel-head h2 { font-size: 13.5px; margin: 0; font-weight: 700; letter-spacing: -0.01em; color: var(--text); }
+  .rd-head, .rd-head h2 { color: var(--text); }
   .panel-head .count {
     margin-left: auto; font-size: 12px; font-weight: 700; color: var(--accent);
     background: var(--accent-light); padding: 3px 10px; border-radius: 20px;
@@ -114,11 +118,12 @@
   .btn-primary:active { transform: translateY(1px); }
   .btn-primary:disabled { background: #b9bec9; box-shadow: none; cursor: not-allowed; }
   .btn-export {
-    display: none; align-items: center; justify-content: center; gap: 8px; width: 100%; margin-top: 14px;
-    padding: 11px 16px; border-radius: 10px; background: var(--good); color: #fff; font-weight: 700; font-size: 13.5px;
-    box-shadow: 0 6px 16px -8px rgba(5,150,105,.6);
+    display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+    padding: 9px 14px; border-radius: 10px; background: var(--good); color: #fff; font-weight: 700; font-size: 13px;
+    box-shadow: 0 6px 16px -8px rgba(5,150,105,.6); white-space: nowrap;
   }
-  .btn-export:hover { filter: brightness(1.06); }
+  .btn-export:hover:not(:disabled) { filter: brightness(1.06); }
+  .btn-export:disabled { background: var(--border); color: var(--muted-soft); box-shadow: none; cursor: not-allowed; }
 
   details { margin-top: 10px; }
   details summary { cursor: pointer; font-size: 12.5px; color: var(--accent); font-weight: 600; list-style: none; display: flex; align-items: center; gap: 5px; }
@@ -238,9 +243,42 @@
   :root[data-theme="dark"] input:focus, :root[data-theme="dark"] textarea:focus { background: var(--panel); }
   :root[data-theme="dark"] #map { background: #1b2333; }
   :root[data-theme="dark"] label, :root[data-theme="dark"] .seg-caption { color: #c4cbd9; }
+
+  /* ---------- Visual effects: neon orbs + cursor glow + liquid glass ---------- */
+  .bg-fx { position: fixed; inset: 0; z-index: -2; overflow: hidden; pointer-events: none; }
+  .bg-fx span { position: absolute; display: block; border-radius: 50%; filter: blur(90px); opacity: .5; animation: floatOrb 22s ease-in-out infinite; }
+  .bg-fx .o1 { width: 480px; height: 480px; left: -80px; top: -60px; background: #6366f1; }
+  .bg-fx .o2 { width: 420px; height: 420px; right: -60px; top: 8%; background: #7c3aed; animation-delay: -6s; }
+  .bg-fx .o3 { width: 380px; height: 380px; left: 32%; bottom: -100px; background: #06b6d4; animation-delay: -12s; opacity: .38; }
+  @keyframes floatOrb { 0%,100% { transform: translate(0,0) scale(1); } 33% { transform: translate(40px,-30px) scale(1.1); } 66% { transform: translate(-30px,25px) scale(.95); } }
+  :root[data-theme="light"] .bg-fx span { opacity: .2; }
+
+  #cursorGlow {
+    position: fixed; top: 0; left: 0; width: 460px; height: 460px; border-radius: 50%;
+    pointer-events: none; z-index: 3; transform: translate(-50%, -50%);
+    background: radial-gradient(circle, rgba(124,58,237,.20), transparent 62%);
+    opacity: 0; transition: opacity .35s ease; will-change: transform;
+  }
+  :root[data-theme="light"] #cursorGlow { background: radial-gradient(circle, rgba(99,102,241,.13), transparent 62%); }
+  @media (hover: none) { #cursorGlow { display: none; } }
+
+  /* liquid-glass cards (falls back to solid if color-mix unsupported) */
+  .panel, .fee-bar, .form-toggle, .kpi:not(.kpi-hero) {
+    background: color-mix(in srgb, var(--panel) 80%, transparent);
+    backdrop-filter: blur(14px) saturate(1.15);
+    -webkit-backdrop-filter: blur(14px) saturate(1.15);
+  }
+  /* neon accents */
+  .btn-primary { box-shadow: 0 6px 18px -4px rgba(99,102,241,.6), inset 0 0 0 1px rgba(255,255,255,.05); }
+  .btn-primary:hover { box-shadow: 0 8px 26px -4px rgba(124,58,237,.8), 0 0 22px -2px rgba(124,58,237,.5); }
+  .seg-btn.active { box-shadow: var(--shadow-sm), 0 0 12px -2px rgba(99,102,241,.5); }
+  .brand-icon { box-shadow: 0 0 18px -2px rgba(124,58,237,.6); }
 </style>
 </head>
 <body>
+
+<div class="bg-fx"><span class="o1"></span><span class="o2"></span><span class="o3"></span></div>
+<div id="cursorGlow"></div>
 
 <div class="topbar">
   <div class="brand-icon">
@@ -339,16 +377,19 @@
         </div>
       </div>
 
-      <button class="btn-export" id="exportBtn">
-        <svg class="icon" viewBox="0 0 24 24" stroke="#fff"><path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2z"/><path d="M9 13l2 2 2-3"/></svg>
-        Excel'e Aktar
-      </button>
       </div><!-- /rd-body -->
     </div>
+
+    <!-- Draggable divider: widen the left panel, map shrinks/grows -->
+    <div class="col-resizer" id="colResizer" title="Sürükleyerek genişlet"></div>
 
     <!-- RIGHT: Ücret tab + Harita -->
     <div class="col-right">
       <div class="fee-bar">
+        <button class="btn-export" id="exportBtn" disabled>
+          <svg class="icon" viewBox="0 0 24 24" stroke="#fff"><path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2z"/><path d="M9 13l2 2 2-3"/></svg>
+          Excel'e Aktar
+        </button>
         <div class="fee-title">
           <span class="badge"><svg class="icon" viewBox="0 0 24 24" style="width:16px;height:16px"><circle cx="12" cy="12" r="9.2"/><text x="12" y="16" font-size="11" font-weight="800" text-anchor="middle" stroke="none" fill="currentColor">€</text></svg></span>
           Ücret Ayarları
@@ -484,6 +525,24 @@
     els.rdToggle.setAttribute('aria-expanded', String(!collapsed));
   });
 
+  // Drag-to-resize the left column (map on the right shrinks/grows)
+  (function () {
+    const grid = document.querySelector('.main-grid');
+    const rez = document.getElementById('colResizer');
+    let dragging = false;
+    function onMove(e) {
+      if (!dragging) return;
+      const rect = grid.getBoundingClientRect();
+      let w = e.clientX - rect.left;
+      w = Math.max(320, Math.min(rect.width - 440, w));
+      grid.style.setProperty('--left-w', w + 'px');
+      if (googleMapInstance) google.maps.event.trigger(googleMapInstance, 'resize');
+    }
+    rez.addEventListener('mousedown', e => { dragging = true; rez.classList.add('dragging'); document.body.style.userSelect = 'none'; document.body.style.cursor = 'col-resize'; e.preventDefault(); });
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', () => { if (dragging) { dragging = false; rez.classList.remove('dragging'); document.body.style.userSelect = ''; document.body.style.cursor = ''; } });
+  })();
+
   // theme
   const DARK_MAP_STYLES = [
     { elementType: 'geometry', stylers: [{ color: '#1b2333' }] },
@@ -523,6 +582,8 @@
   function setProgress(v, pct, label) { els.progressWrap.style.display = v ? 'block' : 'none'; if (pct != null) els.progressBar.style.width = pct + '%'; if (label != null) els.progressLabel.textContent = label; }
   function fmtHours(s) { if (!isFinite(s)) return '—'; const h = Math.floor(s / 3600); const m = Math.round((s % 3600) / 60); return h + ' sa ' + String(m).padStart(2, '0') + ' dk'; }
   function parseStops() { return els.stops.value.split('\n').map(s => s.trim()).filter(Boolean); }
+  // An address must contain letters; phone numbers / pure-numeric values do not.
+  function hasLetters(s) { return /[a-zA-ZÀ-ɏİı]/.test(s || ''); }
   // Parse pasted order rows (tab-separated: Tarih, Müşteri, Ürün, Adet, Adres, Telefon).
   // Rows with an empty Address column are treated as additional products for the previous stop.
   function parseOrders() {
@@ -852,22 +913,38 @@
     const roundTrip = els.roundTrip.checked;
     const endAddr = roundTrip ? startAddr : els.endAddr.value.trim();
     const parsedOrders = parseOrders();
-    const stopAddresses = parsedOrders.map(o => o.address);
+    // Only geocode entries whose "address" actually looks like an address (contains letters).
+    // Phone numbers / pure-numeric values are skipped so they can't break the route.
+    const validOrders = [], skipped = [];
+    parsedOrders.forEach(o => { if (o.address && hasLetters(o.address)) validOrders.push(o); else if (o.address) skipped.push(o.address); });
 
     if (!apiKey) { setStatus('Önce API anahtarını gir (alttaki "Ayarlar" bölümü).', 'bad'); els.formWrap.classList.remove('collapsed'); return; }
     if (!startAddr) { setStatus('Başlangıç adresi gerekli.', 'bad'); return; }
     if (!endAddr) { setStatus('Bitiş adresi gerekli (ya da "Bitiş = Başlangıç").', 'bad'); return; }
-    if (stopAddresses.length === 0) { setStatus('En az bir müşteri adresi gir.', 'bad'); return; }
+    if (validOrders.length === 0) { setStatus('Geçerli adres bulunamadı. "Adres" sütununu kontrol et (telefon numarası adres olarak girilmiş olabilir).', 'bad'); return; }
 
     saveSettings();
-    els.calcBtn.disabled = true; els.exportBtn.style.display = 'none';
+    els.calcBtn.disabled = true; els.exportBtn.disabled = true;
     setStatus('Google Maps yükleniyor...', null); setProgress(true, 0, 'Başlatılıyor...');
     try {
       await loadGoogleMaps(apiKey); ensureMap();
-      const allAddresses = [startAddr, ...stopAddresses, endAddr];
-      setProgress(true, 0, 'Adresler konumlandırılıyor (0/' + allAddresses.length + ')...');
-      const geocoded = await geocodeAll(allAddresses, (done, total) => setProgress(true, Math.round((done / total) * 35), 'Adresler konumlandırılıyor (' + done + '/' + total + ')...'));
-      const startNode = geocoded[0], endNode = geocoded[geocoded.length - 1], stopNodes = geocoded.slice(1, -1);
+      const geocoder = new google.maps.Geocoder();
+      const totalG = validOrders.length + 1 + (roundTrip ? 0 : 1);
+      let doneG = 0;
+      const tick = () => setProgress(true, Math.round((++doneG / totalG) * 35), 'Adresler konumlandırılıyor (' + doneG + '/' + totalG + ')...');
+
+      let startNode, endNode;
+      try { startNode = await geocodeOne(geocoder, startAddr); tick(); } catch (e) { throw new Error('Başlangıç adresi bulunamadı: ' + startAddr); }
+      if (roundTrip) { endNode = startNode; } else { try { endNode = await geocodeOne(geocoder, endAddr); tick(); } catch (e) { throw new Error('Bitiş adresi bulunamadı: ' + endAddr); } }
+
+      // Fault-tolerant stop geocoding: a bad address is skipped, not fatal
+      const stopNodes = [], stopInfo = [];
+      await mapWithConcurrency(validOrders, 5, async (o) => {
+        try { const node = await geocodeOne(geocoder, o.address); stopNodes.push(node); stopInfo.push(o); }
+        catch (e) { skipped.push(o.address); }
+        tick();
+      });
+      if (stopNodes.length === 0) throw new Error('Hiçbir müşteri adresi bulunamadı. Adresleri kontrol et.');
 
       setProgress(true, 38, 'Gerçek yol mesafeleri hesaplanıyor...');
       const nodes = [startNode, ...stopNodes, endNode];
@@ -877,7 +954,7 @@
       const orderDistance = solveTSP(dist), orderTime = solveTSP(time);
 
       state = {
-        startNode, endNode, stopNodes, stopInfo: parsedOrders,
+        startNode, endNode, stopNodes, stopInfo,
         startText: startNode.formatted || startAddr, endText: endNode.formatted || endAddr,
         distMatrix: dist, timeMatrix: time,
         orders: { distance: orderDistance, time: orderTime },
@@ -887,12 +964,24 @@
       els.modeCustom.style.display = 'none';
       els.kpis.style.display = 'grid';
       await renderActive();
-      els.exportBtn.style.display = 'flex';
-      setStatus('✓ Rota hesaplandı — ' + stopAddresses.length + ' durak (' + (selectedMode === 'time' ? 'en kısa süre' : 'en kısa mesafe') + ').', 'ok');
+      els.exportBtn.disabled = false;
+      const warn = skipped.length ? ' ⚠ ' + skipped.length + ' adres atlandı (geçersiz/bulunamadı).' : '';
+      setStatus('✓ Rota hesaplandı — ' + stopNodes.length + ' durak (' + (selectedMode === 'time' ? 'en kısa süre' : 'en kısa mesafe') + ').' + warn, skipped.length ? 'warn' : 'ok');
     } catch (err) { console.error(err); setStatus(err.message || 'Beklenmeyen bir hata oluştu.', 'bad'); }
     finally { els.calcBtn.disabled = false; setTimeout(() => setProgress(false), 800); }
   }
   els.calcBtn.addEventListener('click', handleCalculate);
+
+  // Cursor-follow glow
+  (function () {
+    const glow = document.getElementById('cursorGlow');
+    let mx = 0, my = 0, pending = false;
+    window.addEventListener('mousemove', e => {
+      mx = e.clientX; my = e.clientY; glow.style.opacity = '1';
+      if (!pending) { pending = true; requestAnimationFrame(() => { glow.style.transform = 'translate(' + mx + 'px,' + my + 'px) translate(-50%,-50%)'; pending = false; }); }
+    });
+    document.addEventListener('mouseleave', () => { glow.style.opacity = '0'; });
+  })();
 
   updateStopCountHint();
   highlightMode();
