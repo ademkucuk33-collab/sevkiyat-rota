@@ -298,9 +298,17 @@
         <input type="text" id="endAddr" placeholder="ör. Hauptstraße 5, 70173 Stuttgart">
       </div>
 
-      <label for="stops">Müşteri adresleri (her satıra bir adres)</label>
-      <textarea id="stops" wrap="off" placeholder="Beispielweg 12, 60313 Frankfurt&#10;Bahnhofstraße 8, 90402 Nürnberg&#10;Ringstraße 3, 68159 Mannheim"></textarea>
-      <p class="hint" id="stopCountHint">0 adres girildi.</p>
+      <label for="stops">Sipariş bilgileri (Excel'den satırları yapıştır)</label>
+      <textarea id="stops" wrap="off" placeholder="Tarih ⇥ Müşteri ⇥ Ürün ⇥ Adet ⇥ Adres ⇥ Telefon&#10;(Excel'den kopyala-yapıştır — sütunlar TAB ile ayrılır)&#10;Aynı müşteri 2. ürünü aldıysa alt satırda Adres'i boş bırak"></textarea>
+      <details>
+        <summary>Sütun sırası nasıl olmalı?</summary>
+        <p>Excel'den satırları kopyalayıp yapıştır — sütunlar otomatik TAB ile ayrılır. Beklenen sıra:</p>
+        <ol>
+          <li><b>Tarih</b> · <b>Müşteri</b> · <b>Ürün</b> · <b>Adet</b> · <b>Adres</b> · <b>Telefon</b></li>
+        </ol>
+        <p>Bir müşteri birden fazla ürün aldıysa: ilk satıra tüm bilgileri yaz, ek ürünleri alt satırlara ekle ve o satırlarda <b>Adres sütununu boş</b> bırak — aynı durağa eklenir. Sadece düz adres listesi de yapıştırabilirsin.</p>
+      </details>
+      <p class="hint" id="stopCountHint">0 durak.</p>
 
       <div class="seg-wrap">
         <div class="seg-caption">
@@ -503,9 +511,11 @@
   FIELDS_TO_PERSIST.forEach(key => { const el = els[key]; if (el) el.addEventListener('change', saveSettings); });
 
   function updateStopCountHint() {
-    const n = parseStops().length;
-    els.stopCountHint.textContent = n + ' adres girildi. Sipariş sayısı fazla olsa da (50, 100+) çalışır.';
-    els.formStopCount.textContent = n + ' adres';
+    const orders = parseOrders();
+    const n = orders.length;
+    const products = orders.reduce((s, o) => s + (o.products.length || 0), 0);
+    els.stopCountHint.textContent = n + ' durak' + (products ? ' · ' + products + ' ürün' : '') + '. Sipariş sayısı fazla olsa da (50, 100+) çalışır.';
+    els.formStopCount.textContent = n + ' durak';
   }
   els.stops.addEventListener('input', updateStopCountHint);
 
@@ -513,6 +523,36 @@
   function setProgress(v, pct, label) { els.progressWrap.style.display = v ? 'block' : 'none'; if (pct != null) els.progressBar.style.width = pct + '%'; if (label != null) els.progressLabel.textContent = label; }
   function fmtHours(s) { if (!isFinite(s)) return '—'; const h = Math.floor(s / 3600); const m = Math.round((s % 3600) / 60); return h + ' sa ' + String(m).padStart(2, '0') + ' dk'; }
   function parseStops() { return els.stops.value.split('\n').map(s => s.trim()).filter(Boolean); }
+  // Parse pasted order rows (tab-separated: Tarih, Müşteri, Ürün, Adet, Adres, Telefon).
+  // Rows with an empty Address column are treated as additional products for the previous stop.
+  function parseOrders() {
+    const lines = els.stops.value.split('\n').filter(l => l.trim());
+    const orders = [];
+    for (const line of lines) {
+      const cols = line.split('\t');
+      if (cols.length === 1) {
+        // plain address, no order details
+        orders.push({ date: '', customer: '', phone: '', address: line.trim(), products: [] });
+        continue;
+      }
+      const date = (cols[0] || '').trim();
+      const customer = (cols[1] || '').trim();
+      const product = (cols[2] || '').trim();
+      const qty = (cols[3] || '').trim();
+      const address = (cols[4] || '').trim();
+      const phone = (cols[5] || '').trim();
+      if (address) {
+        orders.push({ date, customer, phone, address, products: product ? [{ name: product, qty }] : [] });
+      } else if (orders.length) {
+        const prev = orders[orders.length - 1];
+        if (product) prev.products.push({ name: product, qty });
+        if (customer && !prev.customer) prev.customer = customer;
+        if (date && !prev.date) prev.date = date;
+        if (phone && !prev.phone) prev.phone = phone;
+      }
+    }
+    return orders;
+  }
   function escapeHtml(str) { const d = document.createElement('div'); d.textContent = str; return d.innerHTML; }
 
   // ---- Google Maps ----
@@ -696,21 +736,39 @@
   }
   function setModeDisabled(v) { [els.modeDistance, els.modeTime, els.modeCustom].forEach(b => { b.style.pointerEvents = v ? 'none' : ''; b.style.opacity = v ? '.6' : ''; }); }
 
+  function stopSubHtml(info, legText) {
+    const parts = [];
+    if (info) {
+      const meta = [];
+      if (info.customer) meta.push('👤 ' + escapeHtml(info.customer));
+      if (info.phone) meta.push('📞 ' + escapeHtml(info.phone));
+      if (info.date) meta.push('📅 ' + escapeHtml(info.date));
+      if (meta.length) parts.push('<div class="addr-sub">' + meta.join(' · ') + '</div>');
+      if (info.products && info.products.length) {
+        const prod = info.products.map(p => escapeHtml(p.name) + (p.qty ? ' ×' + escapeHtml(p.qty) : '')).join(', ');
+        parts.push('<div class="addr-sub">📦 ' + prod + '</div>');
+      }
+    }
+    parts.push('<div class="addr-sub">↳ ' + legText + '</div>');
+    return parts.join('');
+  }
   function renderTable(order, legs, totalKm, driveSec, costPerKm, totalCost) {
-    const row = (numHtml, addr, sub, draggable, pos) => `
+    const row = (numHtml, addr, subHtml, draggable, pos) => `
       <tr ${draggable ? `draggable="true" data-pos="${pos}"` : 'data-fixed="1"'}>
         <td class="num-cell">${numHtml}</td>
         <td class="drag-cell">${draggable ? '⠿' : ''}</td>
-        <td><div class="addr-main">${escapeHtml(addr)}</div>${sub ? `<div class="addr-sub">${sub}</div>` : ''}</td>
+        <td><div class="addr-main">${escapeHtml(addr)}</div>${subHtml || ''}</td>
       </tr>`;
     let rows = '';
-    rows += row('<span class="stop-num start">A</span>', state.startText, 'Başlangıç', false);
+    rows += row('<span class="stop-num start">A</span>', state.startText, '<div class="addr-sub">Başlangıç</div>', false);
     order.forEach((stopIdx, pos) => {
       const node = state.stopNodes[stopIdx]; const leg = legs[pos];
-      rows += row(`<span class="stop-num">${pos + 1}</span>`, node.formatted || node.original, `${(leg.distance.value / 1000).toFixed(1)} km · ${fmtHours(leg.duration.value)}`, true, pos);
+      const info = state.stopInfo ? state.stopInfo[stopIdx] : null;
+      const legText = `${(leg.distance.value / 1000).toFixed(1)} km · ${fmtHours(leg.duration.value)}`;
+      rows += row(`<span class="stop-num">${pos + 1}</span>`, node.formatted || node.original, stopSubHtml(info, legText), true, pos);
     });
     const endLeg = legs[legs.length - 1];
-    rows += row('<span class="stop-num end">B</span>', state.endText, `Bitiş · ${(endLeg.distance.value / 1000).toFixed(1)} km · ${fmtHours(endLeg.duration.value)}`, false);
+    rows += row('<span class="stop-num end">B</span>', state.endText, `<div class="addr-sub">Bitiş · ${(endLeg.distance.value / 1000).toFixed(1)} km · ${fmtHours(endLeg.duration.value)}</div>`, false);
     els.resultsTable.innerHTML = `
       <p class="reorder-hint"><svg class="icon" viewBox="0 0 24 24"><path d="M8 6h8M8 12h8M8 18h8M4 6h.01M4 12h.01M4 18h.01"/></svg> Durakları sürükleyip bırakarak sırayı değiştirebilirsin.</p>
       <table class="stoplist"><tbody>${rows}</tbody></table>
@@ -753,17 +811,20 @@
     const modeName = state.activeMode === 'time' ? 'En kısa süre' : state.activeMode === 'custom' ? 'Özel sıra' : 'En kısa mesafe';
     const rows = [];
     rows.push(['Sevkiyat Rotası — ' + modeName]);
-    rows.push(['Sıra', 'Tür', 'Adres', 'Bu bacak (km)', 'Süre']);
-    rows.push(['A', 'Başlangıç', state.startText, '', '']);
+    rows.push(['Sıra', 'Müşteri', 'Ürünler', 'Adet', 'Adres', 'Telefon', 'Tarih', 'Bu bacak (km)', 'Süre']);
+    rows.push(['A', 'Başlangıç', '', '', state.startText, '', '', '', '']);
     let totalMeters = 0, totalSec = 0;
     order.forEach((stopIdx, pos) => {
       const node = state.stopNodes[stopIdx]; const leg = legs ? legs[pos] : null;
+      const info = state.stopInfo ? state.stopInfo[stopIdx] : null;
       if (leg) { totalMeters += leg.distance.value; totalSec += leg.duration.value; }
-      rows.push([pos + 1, 'Durak', node.formatted || node.original, leg ? (leg.distance.value / 1000).toFixed(1) : '', leg ? fmtHours(leg.duration.value) : '']);
+      const productsStr = info && info.products.length ? info.products.map(p => p.name + (p.qty ? ' x' + p.qty : '')).join(' | ') : '';
+      const qtyStr = info && info.products.length ? info.products.reduce((s, p) => s + (parseInt(p.qty, 10) || 0), 0) : '';
+      rows.push([pos + 1, info ? info.customer : '', productsStr, qtyStr, node.formatted || node.original, info ? info.phone : '', info ? info.date : '', leg ? (leg.distance.value / 1000).toFixed(1) : '', leg ? fmtHours(leg.duration.value) : '']);
     });
     const endLeg = legs ? legs[legs.length - 1] : null;
     if (endLeg) { totalMeters += endLeg.distance.value; totalSec += endLeg.duration.value; }
-    rows.push(['B', 'Bitiş', state.endText, endLeg ? (endLeg.distance.value / 1000).toFixed(1) : '', endLeg ? fmtHours(endLeg.duration.value) : '']);
+    rows.push(['B', 'Bitiş', '', '', state.endText, '', '', endLeg ? (endLeg.distance.value / 1000).toFixed(1) : '', endLeg ? fmtHours(endLeg.duration.value) : '']);
     const totalKm = totalMeters / 1000;
     const stopMinutes = parseFloat(els.stopMinutes.value) || 0;
     const totalTimeSec = totalSec + order.length * stopMinutes * 60;
@@ -790,7 +851,8 @@
     const startAddr = els.startAddr.value.trim();
     const roundTrip = els.roundTrip.checked;
     const endAddr = roundTrip ? startAddr : els.endAddr.value.trim();
-    const stopAddresses = parseStops();
+    const parsedOrders = parseOrders();
+    const stopAddresses = parsedOrders.map(o => o.address);
 
     if (!apiKey) { setStatus('Önce API anahtarını gir (alttaki "Ayarlar" bölümü).', 'bad'); els.formWrap.classList.remove('collapsed'); return; }
     if (!startAddr) { setStatus('Başlangıç adresi gerekli.', 'bad'); return; }
@@ -815,7 +877,7 @@
       const orderDistance = solveTSP(dist), orderTime = solveTSP(time);
 
       state = {
-        startNode, endNode, stopNodes,
+        startNode, endNode, stopNodes, stopInfo: parsedOrders,
         startText: startNode.formatted || startAddr, endText: endNode.formatted || endAddr,
         distMatrix: dist, timeMatrix: time,
         orders: { distance: orderDistance, time: orderTime },
