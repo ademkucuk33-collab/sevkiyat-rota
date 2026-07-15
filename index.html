@@ -66,7 +66,7 @@
   .topbar p { margin: 1px 0 0; font-size: 12.5px; color: var(--muted); }
 
   .layout { max-width: 1320px; margin: 0 auto; padding: 20px 28px 40px; }
-  .main-grid { display: grid; grid-template-columns: 430px 1fr; gap: 20px; align-items: start; margin-bottom: 18px; }
+  .main-grid { display: grid; grid-template-columns: 480px 1fr; gap: 20px; align-items: start; margin-bottom: 18px; }
   @media (max-width: 940px) { .main-grid { grid-template-columns: 1fr; } .layout { padding: 16px; } .topbar { padding: 14px 16px; } }
 
   .panel {
@@ -91,7 +91,8 @@
     transition: border-color .15s, background .15s;
   }
   input:focus, textarea:focus { outline: none; border-color: var(--accent); background: #fff; }
-  textarea { resize: vertical; min-height: 120px; line-height: 1.5; }
+  textarea { resize: both; min-height: 150px; line-height: 1.5; }
+  #stops { white-space: pre; overflow-x: auto; min-width: 100%; }
   .checkbox-row { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
   .checkbox-row input { width: 15px; height: 15px; accent-color: var(--accent); }
   .checkbox-row label { margin: 0; font-weight: 500; color: var(--text); }
@@ -290,7 +291,7 @@
       </div>
 
       <label for="stops">Müşteri adresleri (her satıra bir adres)</label>
-      <textarea id="stops" placeholder="Beispielweg 12, 60313 Frankfurt&#10;Bahnhofstraße 8, 90402 Nürnberg&#10;Ringstraße 3, 68159 Mannheim"></textarea>
+      <textarea id="stops" wrap="off" placeholder="Beispielweg 12, 60313 Frankfurt&#10;Bahnhofstraße 8, 90402 Nürnberg&#10;Ringstraße 3, 68159 Mannheim"></textarea>
       <p class="hint" id="stopCountHint">0 adres girildi.</p>
 
       <div class="seg-wrap">
