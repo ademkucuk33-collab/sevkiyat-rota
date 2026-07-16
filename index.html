@@ -582,6 +582,16 @@
     if (!res.ok) throw new Error('Rota çizimi alınamadı (ORS ' + res.status + ').');
     return res.json();
   }
+  // ORS optimization (VROOM): the professional solver for the best visiting order.
+  async function orsOptimize(key, startNode, endNode, stopNodes) {
+    const jobs = stopNodes.map((n, i) => ({ id: i + 1, location: [n.lng, n.lat] }));
+    const vehicles = [{ id: 1, profile: 'driving-car', start: [startNode.lng, startNode.lat], end: [endNode.lng, endNode.lat] }];
+    const res = await fetch(ORS_BASE + '/optimization', { method: 'POST', headers: { 'Authorization': key, 'Content-Type': 'application/json' }, body: JSON.stringify({ jobs, vehicles }) });
+    if (!res.ok) throw new Error('Optimizasyon alınamadı (ORS ' + res.status + ').');
+    const data = await res.json();
+    if (!data.routes || !data.routes.length) throw new Error('Optimizasyon boş döndü.');
+    return data.routes[0].steps.filter(s => s.type === 'job').map(s => s.id - 1); // stop indices, optimal order
+  }
 
   // Geocode cache — repeated addresses (same customers each week) are geocoded once, then reused for free.
   const GEO_CACHE_KEY = 'sevkiyat-geocache-v2';
@@ -825,19 +835,43 @@
     const unv = new Set(); for (let i = 1; i <= S; i++) unv.add(i);
     const seq = [0]; let cur = 0;
     while (unv.size) { let best = -1, bc = Infinity; unv.forEach(j => { if (matrix[cur][j] < bc) { bc = matrix[cur][j]; best = j; } }); if (best === -1) best = unv.values().next().value; seq.push(best); unv.delete(best); cur = best; }
-    seq.push(N - 1); twoOpt(seq, matrix);
+    seq.push(N - 1); optimizeSeq(seq, matrix);
     return seq.slice(1, -1).map(x => x - 1);
   }
-  function twoOpt(seq, matrix) {
-    const n = seq.length; let improved = true, guard = 0;
-    while (improved && guard < 80) { improved = false; guard++;
-      for (let i = 1; i < n - 2; i++) for (let k = i + 1; k < n - 1; k++) {
+  // 2-opt (reverse a segment) + or-opt (relocate 1-3 consecutive stops). Start/end stay fixed.
+  function optimizeSeq(seq, m) {
+    let improved = true, guard = 0;
+    while (improved && guard < 300) {
+      improved = false; guard++; const n = seq.length;
+      // 2-opt
+      for (let i = 1; i < n - 2 && !improved; i++) for (let k = i + 1; k < n - 1 && !improved; k++) {
         const a = seq[i - 1], b = seq[i], c = seq[k], d = seq[k + 1];
-        if (matrix[a][c] + matrix[b][d] + 1e-6 < matrix[a][b] + matrix[c][d]) { let lo = i, hi = k; while (lo < hi) { const t = seq[lo]; seq[lo] = seq[hi]; seq[hi] = t; lo++; hi--; } improved = true; }
+        if (m[a][c] + m[b][d] + 1e-7 < m[a][b] + m[c][d]) { let lo = i, hi = k; while (lo < hi) { const t = seq[lo]; seq[lo] = seq[hi]; seq[hi] = t; lo++; hi--; } improved = true; }
+      }
+      // or-opt: relocate a segment of length L to a cheaper spot
+      for (let L = 1; L <= 3 && !improved; L++) for (let i = 1; i + L <= n - 1 && !improved; i++) {
+        const p = seq[i - 1], first = seq[i], last = seq[i + L - 1], q = seq[i + L];
+        const gain = m[p][first] + m[last][q] - m[p][q];
+        if (gain <= 1e-7) continue;
+        for (let j = 0; j < n - 1 && !improved; j++) {
+          if (j >= i - 1 && j <= i + L - 1) continue;
+          const u = seq[j], v = seq[j + 1];
+          if (m[u][first] + m[last][v] - m[u][v] + 1e-7 < gain) {
+            const segArr = seq.splice(i, L); seq.splice(j < i ? j + 1 : j + 1 - L, 0, ...segArr); improved = true;
+          }
+        }
       }
     }
   }
   function orderCost(order, matrix) { const ns = [0, ...order.map(i => i + 1), matrix.length - 1]; let t = 0; for (let i = 0; i < ns.length - 1; i++) t += matrix[ns[i]][ns[i + 1]]; return t; }
+  // Refine an existing order (e.g. VROOM's) against a matrix, return the improved order.
+  function refine(order, matrix) { const seq = [0, ...order.map(i => i + 1), matrix.length - 1]; optimizeSeq(seq, matrix); return seq.slice(1, -1).map(x => x - 1); }
+  function bestOrder(matrix, seed) {
+    const a = solveTSP(matrix);
+    if (!seed || !seed.length) return a;
+    const b = refine(seed.slice(), matrix);
+    return orderCost(b, matrix) < orderCost(a, matrix) ? b : a;
+  }
 
   // ---- Directions ----
   // Get the driving polyline geometry from ORS (chunked at 50 coordinates), returned as arrays of [lat,lng].
@@ -1163,10 +1197,16 @@
 
       const nodes = [startNode, ...stopNodes, endNode];
       setProgress(true, 40, 'Gerçek yol mesafeleri hesaplanıyor...');
-      const { dist, time } = await buildMatrices(apiKey, nodes, (done, total) => setProgress(true, 40 + Math.round((done / total) * 38), 'Mesafe matrisi (' + done + '/' + total + ')...'));
+      const { dist, time } = await buildMatrices(apiKey, nodes, (done, total) => setProgress(true, 40 + Math.round((done / total) * 32), 'Mesafe matrisi (' + done + '/' + total + ')...'));
 
-      setProgress(true, 80, 'Sıralama optimize ediliyor...');
-      const orderDistance = solveTSP(dist), orderTime = solveTSP(time);
+      // Professional order via ORS optimization (VROOM); fall back to local solver if unavailable.
+      setProgress(true, 74, 'En verimli sıra hesaplanıyor...');
+      let vroom = null;
+      try { vroom = await orsOptimize(apiKey, startNode, endNode, stopNodes); }
+      catch (e) { console.warn('ORS optimization kullanılamadı, yerel çözücüye geçildi:', e.message); }
+      setProgress(true, 80, 'Sıralama iyileştiriliyor...');
+      const orderTime = vroom ? refine(vroom.slice(), time) : bestOrder(time, null);
+      const orderDistance = bestOrder(dist, vroom);
 
       state = {
         startNode, endNode, stopNodes, stopInfo, orsKey: apiKey,
