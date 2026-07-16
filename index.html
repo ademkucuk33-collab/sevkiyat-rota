@@ -6,6 +6,8 @@
 <title>Sevkiyat Rota Planlayıcı</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
   (function(){
     try {
@@ -180,7 +182,13 @@
   .kpi.kpi-hero .icon-badge { background: rgba(255,255,255,.18); color: #fff; }
   .kpi.kpi-hero .label { color: rgba(255,255,255,.85); }
 
-  #map { width: 100%; height: calc(100vh - 240px); min-height: 380px; max-height: 820px; border-radius: 10px; border: 1px solid var(--border); background: #eef1f6; }
+  #map { width: 100%; height: calc(100vh - 240px); min-height: 380px; max-height: 820px; border-radius: 10px; border: 1px solid var(--border); background: #eef1f6; overflow: hidden; }
+  .leaflet-container { font: inherit; background: var(--panel-soft); }
+  .leaflet-control-attribution { font-size: 10px !important; }
+  :root[data-theme="dark"] .leaflet-control-attribution { background: rgba(20,26,40,.7) !important; }
+  :root[data-theme="dark"] .leaflet-control-attribution a { color: #98a2b6 !important; }
+  :root[data-theme="dark"] .leaflet-bar a { background: #1b2333; color: #e6eaf3; border-bottom-color: #2a3448; }
+  :root[data-theme="dark"] .leaflet-bar a:hover { background: #222b3c; }
   @media (max-width: 940px) { #map { height: 60vh; min-height: 360px; } }
   .legend { display: flex; gap: 16px; margin-top: 12px; flex-wrap: wrap; }
   .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
@@ -378,12 +386,6 @@
         </div>
       </div>
 
-      <div class="checkbox-row" style="margin-top:14px">
-        <input type="checkbox" id="econMode" checked>
-        <label for="econMode">Tutumlu mod — daha az API tüketimi</label>
-      </div>
-      <p class="hint">Açıkken sıralama kuş uçuşu mesafeyle yapılır (pahalı <b>Distance Matrix API</b> kullanılmaz) → çok daha az tüketim. Kapatırsan gerçek yol mesafesiyle hesaplar (biraz daha isabetli, ama belirgin şekilde daha fazla tüketim).</p>
-
       <button class="btn-primary" id="calcBtn">
         <svg class="icon" viewBox="0 0 24 24" stroke="#fff"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
         Rota Hesapla
@@ -477,23 +479,23 @@
       <div class="panel">
         <div class="panel-head">
           <span class="badge"><svg class="icon" viewBox="0 0 24 24"><circle cx="7.5" cy="12" r="4.2"/><path d="M11.3 12H21M17 12v3.2M20 12v3.2"/></svg></span>
-          <h2>Google Maps API Anahtarı</h2>
+          <h2>OpenRouteService API Anahtarı</h2>
         </div>
-        <label for="apiKey">API Key</label>
-        <input type="password" id="apiKey" placeholder="AIza...">
+        <label for="apiKey">API Key (ücretsiz)</label>
+        <input type="password" id="apiKey" placeholder="eyJ... (ORS anahtarı)">
         <div class="checkbox-row">
           <input type="checkbox" id="showKey">
           <label for="showKey">Anahtarı göster</label>
         </div>
         <details>
-          <summary>Hangi API'ler açık olmalı?</summary>
+          <summary>Ücretsiz anahtar nereden alınır?</summary>
           <ol>
-            <li><b>Maps JavaScript API</b> — haritayı gösterir</li>
-            <li><b>Directions API</b> — rotayı çizer</li>
-            <li><b>Geocoding API</b> — adresleri konuma çevirir</li>
-            <li><b>Distance Matrix API</b> — en kısa mesafe/süre optimizasyonu için</li>
+            <li><b>openrouteservice.org/dev</b> adresine ücretsiz kaydol.</li>
+            <li>"Request a token" → <b>Standard</b> (ücretsiz) plan → anahtarı kopyala.</li>
+            <li>Anahtarı buraya yapıştır. Tamamen ücretsiz — kredi kartı gerekmez.</li>
+            <li>Günlük ~2000 rota / 500 matris / 1000 adres ücretsiz kotası var.</li>
           </ol>
-          <p>Anahtar sadece tarayıcında saklanır (localStorage), hiçbir sunucuya gönderilmez.</p>
+          <p>Harita da ücretsiz OpenStreetMap ile çalışır — artık Google gerekmiyor. Anahtar yalnızca tarayıcında saklanır (localStorage).</p>
         </details>
       </div>
     </div>
@@ -549,37 +551,51 @@
   };
 
   const STORAGE_KEY = 'sevkiyat-rota-settings-v2';
-  const FIELDS_TO_PERSIST = ['apiKey', 'costPerKm', 'stopMinutes', 'startAddr', 'endAddr', 'roundTrip', 'econMode'];
+  const FIELDS_TO_PERSIST = ['apiKey', 'costPerKm', 'stopMinutes', 'startAddr', 'endAddr', 'roundTrip'];
+
+  // ---- OpenRouteService (free, no Google) ----
+  const ORS_BASE = 'https://api.openrouteservice.org';
+  function orsErr(res) {
+    const e = new Error('ORS ' + res.status);
+    e.status = res.status === 429 ? 'OVER_QUERY_LIMIT' : res.status === 403 || res.status === 401 ? 'REQUEST_DENIED' : res.status === 404 ? 'ZERO_RESULTS' : 'UNKNOWN_ERROR';
+    return e;
+  }
+  async function orsGeocode(key, address) {
+    const url = ORS_BASE + '/geocode/search?api_key=' + encodeURIComponent(key) + '&text=' + encodeURIComponent(address) + '&size=1&boundary.country=DE';
+    const res = await fetch(url);
+    if (!res.ok) throw orsErr(res);
+    const data = await res.json();
+    if (!data.features || !data.features.length) { const e = new Error('no results'); e.status = 'ZERO_RESULTS'; throw e; }
+    const f = data.features[0], c = f.geometry.coordinates; // [lng, lat]
+    return { lat: c[1], lng: c[0], formatted: f.properties.label, original: address };
+  }
+  async function orsMatrix(key, locsLngLat, sources, destinations) {
+    const body = { locations: locsLngLat, metrics: ['distance', 'duration'], units: 'm' };
+    if (sources) body.sources = sources;
+    if (destinations) body.destinations = destinations;
+    const res = await fetch(ORS_BASE + '/v2/matrix/driving-car', { method: 'POST', headers: { 'Authorization': key, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    if (!res.ok) throw new Error('Mesafe matrisi alınamadı (ORS ' + res.status + '). Anahtar geçerli mi / günlük limit aşıldı mı?');
+    return res.json();
+  }
+  async function orsDirections(key, coordsLngLat) {
+    const res = await fetch(ORS_BASE + '/v2/directions/driving-car/geojson', { method: 'POST', headers: { 'Authorization': key, 'Content-Type': 'application/json' }, body: JSON.stringify({ coordinates: coordsLngLat }) });
+    if (!res.ok) throw new Error('Rota çizimi alınamadı (ORS ' + res.status + ').');
+    return res.json();
+  }
 
   // Geocode cache — repeated addresses (same customers each week) are geocoded once, then reused for free.
-  const GEO_CACHE_KEY = 'sevkiyat-geocache-v1';
+  const GEO_CACHE_KEY = 'sevkiyat-geocache-v2';
   let geoCache = {};
   try { geoCache = JSON.parse(localStorage.getItem(GEO_CACHE_KEY) || '{}'); } catch (e) { geoCache = {}; }
   function geoKey(a) { return (a || '').trim().toLowerCase().replace(/\s+/g, ' '); }
-  async function geocodeCached(geocoder, address) {
+  async function geocodeCached(key, address) {
     const k = geoKey(address);
     const hit = geoCache[k];
     if (hit) return { lat: hit.lat, lng: hit.lng, formatted: hit.formatted, original: address };
-    const node = await geocodeOne(geocoder, address);
+    const node = await orsGeocode(key, address);
     geoCache[k] = { lat: node.lat, lng: node.lng, formatted: node.formatted };
     try { localStorage.setItem(GEO_CACHE_KEY, JSON.stringify(geoCache)); } catch (e) {}
     return node;
-  }
-  // Free client-side distance (no API). Only used to decide the visiting order; displayed
-  // km/time still come from the real Directions draw.
-  function haversineKm(a, b) {
-    const R = 6371, dLat = (b.lat - a.lat) * Math.PI / 180, dLng = (b.lng - a.lng) * Math.PI / 180;
-    const la1 = a.lat * Math.PI / 180, la2 = b.lat * Math.PI / 180;
-    const h = Math.sin(dLat / 2) ** 2 + Math.cos(la1) * Math.cos(la2) * Math.sin(dLng / 2) ** 2;
-    return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
-  }
-  function buildMatricesLocal(nodes) {
-    const N = nodes.length, dist = [], time = [];
-    for (let i = 0; i < N; i++) {
-      dist.push(new Array(N)); time.push(new Array(N));
-      for (let j = 0; j < N; j++) { const m = i === j ? 0 : haversineKm(nodes[i], nodes[j]) * 1000; dist[i][j] = m; time[i][j] = m / 19.4; }
-    }
-    return { dist, time };
   }
 
   function loadSettings() {
@@ -621,7 +637,7 @@
       let w = e.clientX - rect.left;
       w = Math.max(320, Math.min(rect.width - 440, w));
       grid.style.setProperty('--left-w', w + 'px');
-      if (googleMapInstance) google.maps.event.trigger(googleMapInstance, 'resize');
+      if (leafletMap) leafletMap.invalidateSize();
     }
     rez.addEventListener('mousedown', e => { dragging = true; rez.classList.add('dragging'); document.body.style.userSelect = 'none'; document.body.style.cursor = 'col-resize'; e.preventDefault(); });
     window.addEventListener('mousemove', onMove);
@@ -629,21 +645,8 @@
   })();
 
   // theme
-  const DARK_MAP_STYLES = [
-    { elementType: 'geometry', stylers: [{ color: '#1b2333' }] },
-    { elementType: 'labels.text.stroke', stylers: [{ color: '#1b2333' }] },
-    { elementType: 'labels.text.fill', stylers: [{ color: '#8a93a6' }] },
-    { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#2a3448' }] },
-    { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: '#222b3c' }] },
-    { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#3a4666' }] },
-    { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#0e1320' }] },
-    { featureType: 'poi', elementType: 'geometry', stylers: [{ color: '#20293b' }] },
-    { featureType: 'poi.park', elementType: 'geometry', stylers: [{ color: '#1c2b24' }] },
-    { featureType: 'administrative', elementType: 'geometry', stylers: [{ color: '#374561' }] },
-    { featureType: 'transit', stylers: [{ visibility: 'off' }] },
-  ];
   function currentTheme() { return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light'; }
-  function applyMapTheme() { if (googleMapInstance) googleMapInstance.setOptions({ styles: currentTheme() === 'dark' ? DARK_MAP_STYLES : [] }); }
+  function applyMapTheme() { setTiles(); }
   els.themeToggle.addEventListener('click', () => {
     const next = currentTheme() === 'dark' ? 'light' : 'dark';
     document.documentElement.setAttribute('data-theme', next);
@@ -689,11 +692,11 @@
   function hasLetters(s) { return /[a-zA-ZÀ-ɏİı]/.test(s || ''); }
   function geoReason(status) {
     switch (status) {
-      case 'ZERO_RESULTS': return 'Google bu adresi bulamadı — adres eksik, yanlış yazılmış veya çok belirsiz olabilir (posta kodu / şehir eksik olabilir).';
-      case 'OVER_QUERY_LIMIT': return 'Google sorgu limiti geçici olarak aşıldı — biraz sonra tekrar dene.';
+      case 'ZERO_RESULTS': return 'Adres bulunamadı — eksik, yanlış yazılmış veya çok belirsiz olabilir (posta kodu / şehir eksik olabilir).';
+      case 'OVER_QUERY_LIMIT': return 'ORS dakikalık/günlük ücretsiz limit aşıldı — biraz sonra tekrar dene.';
       case 'INVALID_REQUEST': return 'Adres boş veya geçersiz.';
-      case 'REQUEST_DENIED': return 'İstek reddedildi — Geocoding API kapalı olabilir ya da anahtar kısıtlaması engelliyor.';
-      case 'UNKNOWN_ERROR': return 'Google tarafında geçici bir hata — tekrar dene.';
+      case 'REQUEST_DENIED': return 'İstek reddedildi — ORS anahtarı geçersiz veya limit dolmuş olabilir.';
+      case 'UNKNOWN_ERROR': return 'Geçici bir hata — tekrar dene.';
       default: return 'Adres bulunamadı' + (status ? ' (' + status + ')' : '') + '.';
     }
   }
@@ -722,11 +725,17 @@
   // start with a date are wrapped continuations of the previous row → re-join them with a TAB.
   const DATE_START = /^\s*\d{1,2}[.\/-]\d{1,2}[.\/-]\d{2,4}/;
   function normalizeLines(raw) {
-    const out = [];
+    const out = [], wasDate = [];
     raw.split('\n').forEach(line => {
       if (!line.trim()) return;
-      if (out.length === 0 || DATE_START.test(line)) out.push(line.replace(/\s+$/, ''));
-      else out[out.length - 1] = out[out.length - 1].replace(/[ \t]+$/, '') + '\t' + line.trim();
+      const isDate = DATE_START.test(line);
+      // Merge a non-date line into the previous ONLY if the previous line is a date-started order row
+      // (i.e. a wrapped continuation). Plain address lists (no dates) stay one-per-line.
+      if (out.length && !isDate && wasDate[wasDate.length - 1]) {
+        out[out.length - 1] = out[out.length - 1].replace(/[ \t]+$/, '') + '\t' + line.trim();
+      } else {
+        out.push(line.replace(/\s+$/, '')); wasDate.push(isDate);
+      }
     });
     return out;
   }
@@ -760,32 +769,29 @@
   }
   function escapeHtml(str) { const d = document.createElement('div'); d.textContent = str; return d.innerHTML; }
 
-  // ---- Google Maps ----
-  let mapsLoadedForKey = null, googleMapInstance = null, activeRenderers = [], activeMarkers = [];
-  function loadGoogleMaps(apiKey) {
-    return new Promise((resolve, reject) => {
-      if (mapsLoadedForKey === apiKey && window.google && window.google.maps) { resolve(); return; }
-      const prev = document.getElementById('gmaps-script'); if (prev) prev.remove();
-      window.__onGMapsLoaded = function () { mapsLoadedForKey = apiKey; resolve(); };
-      window.gm_authFailure = function () { reject(new Error('Google Maps kimlik doğrulama hatası: API key geçersiz, kısıtlı veya faturalandırma kapalı olabilir.')); };
-      const s = document.createElement('script'); s.id = 'gmaps-script';
-      s.src = 'https://maps.googleapis.com/maps/api/js?key=' + encodeURIComponent(apiKey) + '&language=tr&region=DE&callback=__onGMapsLoaded';
-      s.async = true; s.onerror = () => reject(new Error('Google Maps script yüklenemedi. API key / internet bağlantısını kontrol et.'));
-      document.head.appendChild(s);
-    });
+  // ---- Map (Leaflet + free OpenStreetMap tiles, no Google) ----
+  let leafletMap = null, tileLayer = null, activeLayers = [];
+  const TILES = {
+    light: { url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', attr: '© OpenStreetMap, © CARTO' },
+    dark: { url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', attr: '© OpenStreetMap, © CARTO' },
+  };
+  function setTiles() {
+    if (!leafletMap) return;
+    if (tileLayer) leafletMap.removeLayer(tileLayer);
+    const t = TILES[currentTheme() === 'dark' ? 'dark' : 'light'];
+    tileLayer = L.tileLayer(t.url, { attribution: t.attr, subdomains: 'abcd', maxZoom: 19 }).addTo(leafletMap);
   }
   function ensureMap() {
-    if (googleMapInstance) return;
-    els.map.innerHTML = '';
-    googleMapInstance = new google.maps.Map(els.map, {
-      center: { lat: 51.1657, lng: 10.4515 }, zoom: 6, clickableIcons: false,
-      mapTypeControl: true,
-      mapTypeControlOptions: { style: google.maps.MapTypeControlStyle.HORIZONTAL_BAR, position: google.maps.ControlPosition.TOP_LEFT, mapTypeIds: ['roadmap', 'satellite', 'hybrid', 'terrain'] },
-      fullscreenControl: true, streetViewControl: true, scaleControl: true, zoomControl: true,
-      styles: currentTheme() === 'dark' ? DARK_MAP_STYLES : [],
-    });
+    if (leafletMap) return;
+    els.map.innerHTML = ''; els.map.style.background = '';
+    leafletMap = L.map(els.map, { zoomControl: true, attributionControl: true }).setView([51.1657, 10.4515], 6);
+    setTiles();
   }
-  function clearMapOverlays() { activeRenderers.forEach(r => r.setMap(null)); activeRenderers = []; activeMarkers.forEach(m => m.setMap(null)); activeMarkers = []; }
+  function clearMapOverlays() { activeLayers.forEach(l => leafletMap.removeLayer(l)); activeLayers = []; }
+  function markerIcon(color, txt, big) {
+    const d = big ? 26 : 24;
+    return L.divIcon({ className: 'route-marker', html: '<div style="background:' + color + ';color:#fff;width:' + d + 'px;height:' + d + 'px;border-radius:50%;display:flex;align-items:center;justify-content:center;font:700 11px Inter,sans-serif;border:2px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.45)">' + txt + '</div>', iconSize: [d, d], iconAnchor: [d / 2, d / 2] });
+  }
 
   // ---- Geocoding ----
   async function mapWithConcurrency(items, limit, fn) {
@@ -794,44 +800,21 @@
     await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
     return results;
   }
-  function geocodeOne(geocoder, address, attempt) {
-    attempt = attempt || 0;
-    return new Promise((resolve, reject) => {
-      geocoder.geocode({ address: address, region: 'de' }, (results, status) => {
-        if (status === 'OK' && results[0]) { const loc = results[0].geometry.location; resolve({ lat: loc.lat(), lng: loc.lng(), formatted: results[0].formatted_address, original: address }); }
-        else if (status === 'OVER_QUERY_LIMIT' && attempt < 5) { setTimeout(() => geocodeOne(geocoder, address, attempt + 1).then(resolve, reject), 400 * (attempt + 1)); }
-        else { const err = new Error('Adres bulunamadı: "' + address + '" (' + status + ')'); err.status = status; reject(err); }
-      });
-    });
-  }
-  async function geocodeAll(addresses, onProgress) {
-    const geocoder = new google.maps.Geocoder(); let completed = 0;
-    return mapWithConcurrency(addresses, 5, async (addr) => { const r = await geocodeOne(geocoder, addr); completed++; onProgress(completed, addresses.length); return r; });
-  }
-
-  // ---- Distance Matrix ----
-  function callMatrix(service, origins, destinations, attempt) {
-    attempt = attempt || 0;
-    return new Promise((resolve, reject) => {
-      service.getDistanceMatrix({ origins, destinations, travelMode: google.maps.TravelMode.DRIVING }, (res, status) => {
-        if (status === 'OK') resolve(res);
-        else if (status === 'OVER_QUERY_LIMIT' && attempt < 5) setTimeout(() => callMatrix(service, origins, destinations, attempt + 1).then(resolve, reject), 500 * (attempt + 1));
-        else reject(new Error('Mesafe matrisi alınamadı (' + status + '). "Distance Matrix API" açık ve anahtar için izinli mi?'));
-      });
-    });
-  }
-  async function buildMatrices(nodes, onProgress) {
-    const N = nodes.length; const service = new google.maps.DistanceMatrixService();
+  // ---- Distance/time matrix via ORS (chunked by sources so routes stay within free limit) ----
+  async function buildMatrices(key, nodes, onProgress) {
+    const N = nodes.length;
+    const locs = nodes.map(n => [n.lng, n.lat]);
     const dist = Array.from({ length: N }, () => new Array(N).fill(Infinity));
     const time = Array.from({ length: N }, () => new Array(N).fill(Infinity));
-    const locs = nodes.map(n => new google.maps.LatLng(n.lat, n.lng));
-    const B = 10; const batches = [];
-    for (let i = 0; i < N; i += B) batches.push([i, Math.min(i + B, N)]);
-    let done = 0; const total = batches.length * batches.length;
-    for (const [os, oe] of batches) for (const [ds, de] of batches) {
-      const res = await callMatrix(service, locs.slice(os, oe), locs.slice(ds, de));
-      for (let r = 0; r < res.rows.length; r++) { const row = res.rows[r].elements; for (let c = 0; c < row.length; c++) { const el = row[c]; if (el.status === 'OK') { dist[os + r][ds + c] = el.distance.value; time[os + r][ds + c] = el.duration.value; } } }
-      done++; onProgress(done, total);
+    const MAX_ROUTES = 2500;
+    const block = Math.max(1, Math.min(N, Math.floor(MAX_ROUTES / N)));
+    const totalBlocks = Math.ceil(N / block); let done = 0;
+    for (let s = 0; s < N; s += block) {
+      const sources = []; for (let i = s; i < Math.min(s + block, N); i++) sources.push(i);
+      const data = await orsMatrix(key, locs, sources, null);
+      data.distances.forEach((row, ri) => { const gi = sources[ri]; row.forEach((v, cj) => { dist[gi][cj] = v == null ? Infinity : v; }); });
+      data.durations.forEach((row, ri) => { const gi = sources[ri]; row.forEach((v, cj) => { time[gi][cj] = v == null ? Infinity : v; }); });
+      done++; onProgress(done, totalBlocks);
     }
     return { dist, time };
   }
@@ -857,80 +840,34 @@
   function orderCost(order, matrix) { const ns = [0, ...order.map(i => i + 1), matrix.length - 1]; let t = 0; for (let i = 0; i < ns.length - 1; i++) t += matrix[ns[i]][ns[i + 1]]; return t; }
 
   // ---- Directions ----
-  function routeChunk(o, d, wps) {
-    const svc = new google.maps.DirectionsService();
-    return new Promise((resolve, reject) => {
-      svc.route({ origin: o, destination: d, waypoints: wps.map(ll => ({ location: ll, stopover: true })), optimizeWaypoints: false, travelMode: google.maps.TravelMode.DRIVING },
-        (result, status) => { if (status === 'OK') resolve(result); else reject(new Error('Rota parçası çizilemedi (' + status + ').')); });
-    });
+  // Get the driving polyline geometry from ORS (chunked at 50 coordinates), returned as arrays of [lat,lng].
+  async function fetchGeometry(key, nodeSeq) {
+    const coords = nodeSeq.map(n => [n.lng, n.lat]);
+    const CH = 50; const lines = [];
+    for (let s = 0; s < coords.length - 1; s += CH - 1) {
+      const chunk = coords.slice(s, Math.min(s + CH, coords.length));
+      if (chunk.length < 2) break;
+      const gj = await orsDirections(key, chunk);
+      lines.push(gj.features[0].geometry.coordinates.map(c => [c[1], c[0]]));
+    }
+    return lines;
   }
-  async function buildFullRoute(nodeLLs) {
-    const CH = 25; const chunks = []; let s = 0;
-    while (s < nodeLLs.length - 1) { const e = Math.min(s + CH - 1, nodeLLs.length - 1); chunks.push([s, e]); s = e; }
-    const legs = [], directionsResults = [];
-    for (const [cs, ce] of chunks) { const result = await routeChunk(nodeLLs[cs], nodeLLs[ce], nodeLLs.slice(cs + 1, ce)); directionsResults.push(result); result.routes[0].legs.forEach(l => legs.push(l)); }
-    return { legs, directionsResults };
-  }
-  function drawRoute(directionsResults, orderedNodes) {
-    clearMapOverlays(); const bounds = new google.maps.LatLngBounds();
-    directionsResults.forEach(result => {
-      const renderer = new google.maps.DirectionsRenderer({ suppressMarkers: true, preserveViewport: true, polylineOptions: { strokeColor: '#4f46e5', strokeWeight: 4, strokeOpacity: 0.85 } });
-      renderer.setMap(googleMapInstance); renderer.setDirections(result); activeRenderers.push(renderer);
-      result.routes[0].legs.forEach(leg => { bounds.extend(leg.start_location); bounds.extend(leg.end_location); });
-    });
-    orderedNodes.forEach((node, i) => {
-      const isStart = i === 0, isEnd = i === orderedNodes.length - 1;
-      const marker = new google.maps.Marker({
-        position: { lat: node.lat, lng: node.lng }, map: googleMapInstance,
-        label: { text: isStart ? 'A' : isEnd ? 'B' : String(i), color: '#fff', fontSize: '11px', fontWeight: '700' },
-        icon: { path: google.maps.SymbolPath.CIRCLE, scale: isStart || isEnd ? 12 : 10, fillColor: isStart ? '#059669' : isEnd ? '#dc2626' : '#4f46e5', fillOpacity: 1, strokeColor: '#fff', strokeWeight: 2 },
-      });
-      activeMarkers.push(marker);
-    });
-    googleMapInstance.fitBounds(bounds);
-  }
-  // Draw one or more colored route groups (used for route splitting)
-  function drawMulti(groups) {
+  function drawRoute(geoLines, nodeSeq) {
     clearMapOverlays();
-    const bounds = new google.maps.LatLngBounds();
-    groups.forEach(g => {
-      g.directionsResults.forEach(result => {
-        const renderer = new google.maps.DirectionsRenderer({ suppressMarkers: true, preserveViewport: true, polylineOptions: { strokeColor: g.color, strokeWeight: 4, strokeOpacity: 0.85 } });
-        renderer.setMap(googleMapInstance); renderer.setDirections(result); activeRenderers.push(renderer);
-        result.routes[0].legs.forEach(leg => { bounds.extend(leg.start_location); bounds.extend(leg.end_location); });
-      });
-      g.nodeSeq.forEach((node, i) => {
-        if (i === 0 || i === g.nodeSeq.length - 1) return; // start/end drawn once below
-        const marker = new google.maps.Marker({
-          position: { lat: node.lat, lng: node.lng }, map: googleMapInstance,
-          label: { text: String(i), color: '#fff', fontSize: '11px', fontWeight: '700' },
-          icon: { path: google.maps.SymbolPath.CIRCLE, scale: 10, fillColor: g.color, fillOpacity: 1, strokeColor: '#fff', strokeWeight: 2 },
-        });
-        activeMarkers.push(marker);
-      });
+    const latlngs = [];
+    geoLines.forEach(line => { const pl = L.polyline(line, { color: '#4f46e5', weight: 4, opacity: 0.85 }).addTo(leafletMap); activeLayers.push(pl); line.forEach(p => latlngs.push(p)); });
+    nodeSeq.forEach((node, i) => {
+      const isStart = i === 0, isEnd = i === nodeSeq.length - 1;
+      const color = isStart ? '#059669' : isEnd ? '#dc2626' : '#4f46e5';
+      const txt = isStart ? 'A' : isEnd ? 'B' : String(i);
+      const m = L.marker([node.lat, node.lng], { icon: markerIcon(color, txt, isStart || isEnd) }).addTo(leafletMap);
+      activeLayers.push(m); latlngs.push([node.lat, node.lng]);
     });
-    const seq0 = groups[0].nodeSeq;
-    [[seq0[0], 'A', '#059669'], [seq0[seq0.length - 1], 'B', '#dc2626']].forEach(([node, txt, col]) => {
-      activeMarkers.push(new google.maps.Marker({
-        position: { lat: node.lat, lng: node.lng }, map: googleMapInstance,
-        label: { text: txt, color: '#fff', fontSize: '11px', fontWeight: '700' },
-        icon: { path: google.maps.SymbolPath.CIRCLE, scale: 12, fillColor: col, fillOpacity: 1, strokeColor: '#fff', strokeWeight: 2 },
-      }));
-      bounds.extend({ lat: node.lat, lng: node.lng });
-    });
-    googleMapInstance.fitBounds(bounds);
+    if (latlngs.length) leafletMap.fitBounds(L.latLngBounds(latlngs), { padding: [30, 30] });
   }
 
   // ---- State + rendering ----
-  let state = null, rendering = false, selectedMode = 'distance', selectedSplit = 1;
-  const ROUTE_COLORS = ['#4f46e5', '#0ea5e9', '#f59e0b'];
-  function hexA(hex, a) { const n = parseInt(hex.slice(1), 16); return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`; }
-  function partitionOrder(order, n) {
-    n = Math.min(n, order.length) || 1;
-    const parts = Array.from({ length: n }, () => []);
-    order.forEach((v, i) => parts[Math.floor(i * n / order.length)].push(v));
-    return parts.filter(p => p.length);
-  }
+  let state = null, rendering = false, selectedMode = 'distance';
   function cheapestInsert(order, stopIdx, matrix) {
     const seq = [0, ...order.map(i => i + 1), matrix.length - 1];
     const nn = stopIdx + 1; let bestPos = 0, best = Infinity;
@@ -973,30 +910,29 @@
         els.kpiKm.textContent = '0 km'; els.kpiTotalTime.textContent = '—'; els.kpiStops.textContent = '0'; els.kpiCost.textContent = '€0.00';
         updateModeBar(); setProgress(false); return;
       }
-      const splitN = Math.min(selectedSplit, baseOrder.length);
-      const groups = partitionOrder(baseOrder, splitN);
-      setProgress(true, 84, 'Rota çiziliyor...');
-      const drawGroups = [], perPart = [];
-      let totalMeters = 0, totalSec = 0;
-      for (let gi = 0; gi < groups.length; gi++) {
-        const gStops = groups[gi];
-        const nodeSeq = [state.startNode, ...gStops.map(i => state.stopNodes[i]), state.endNode];
-        const key = 'p' + gi + ':' + gStops.join(',');
-        let dr = state.dirCache[key]; if (!dr) { dr = await buildFullRoute(nodeSeq.map(n => ({ lat: n.lat, lng: n.lng }))); state.dirCache[key] = dr; }
-        drawGroups.push({ directionsResults: dr.directionsResults, nodeSeq, color: ROUTE_COLORS[gi % ROUTE_COLORS.length] });
-        let m = 0, s = 0; dr.legs.forEach(l => { m += l.distance.value; s += l.duration.value; });
-        perPart.push({ stops: gStops, legs: dr.legs, meters: m, sec: s, color: ROUTE_COLORS[gi % ROUTE_COLORS.length] });
-        totalMeters += m; totalSec += s;
+      // Per-leg distance/time come straight from the ORS matrix we already have (no extra API calls).
+      const order = baseOrder;
+      const seq = [0, ...order.map(i => i + 1), state.distMatrix.length - 1];
+      const legs = []; let totalMeters = 0, totalSec = 0;
+      for (let k = 0; k < seq.length - 1; k++) {
+        const dm = state.distMatrix[seq[k]][seq[k + 1]], tm = state.timeMatrix[seq[k]][seq[k + 1]];
+        legs.push({ distance: dm, duration: tm }); totalMeters += dm; totalSec += tm;
       }
-      drawMulti(drawGroups);
+      // Draw the actual road polyline via ORS (only call that draws the map; cached per order).
+      const nodeSeq = [state.startNode, ...order.map(i => state.stopNodes[i]), state.endNode];
+      setProgress(true, 84, 'Rota çiziliyor...');
+      const dkey = order.join(',');
+      let geoLines = state.dirCache[dkey];
+      if (!geoLines) { geoLines = await fetchGeometry(state.orsKey, nodeSeq); state.dirCache[dkey] = geoLines; }
+      drawRoute(geoLines, nodeSeq);
       const totalKm = totalMeters / 1000; const stopMinutes = parseFloat(els.stopMinutes.value) || 0;
-      const totalTimeSeconds = totalSec + baseOrder.length * stopMinutes * 60;
+      const totalTimeSeconds = totalSec + order.length * stopMinutes * 60;
       const costPerKm = parseFloat(els.costPerKm.value) || 0; const totalCost = totalKm * costPerKm;
       els.kpiKm.textContent = totalKm.toFixed(1) + ' km';
       els.kpiTotalTime.textContent = fmtHours(totalTimeSeconds);
-      els.kpiStops.textContent = String(baseOrder.length);
+      els.kpiStops.textContent = String(order.length);
       els.kpiCost.textContent = '€' + totalCost.toFixed(2);
-      renderList(perPart, totalKm, totalSec, costPerKm, totalCost, groups.length > 1);
+      renderList(order, legs, totalKm, totalSec, costPerKm, totalCost);
       updateModeBar();
       setProgress(true, 100, 'Tamamlandı.');
     } catch (err) { console.error(err); setStatus(err.message || 'Rota çizilemedi.', 'bad'); }
@@ -1029,32 +965,24 @@
       <td class="del-cell">${isStop ? `<button class="del-btn" data-del="${stopIdx}" title="Bu durağı listeden sil">✕</button>` : ''}</td>
     </tr>`;
   }
-  function renderList(perPart, totalKm, driveSec, costPerKm, totalCost, isSplit) {
-    let html = '';
-    if (!isSplit) html += `<p class="reorder-hint"><svg class="icon" viewBox="0 0 24 24"><path d="M8 6h8M8 12h8M8 18h8M4 6h.01M4 12h.01M4 18h.01"/></svg> Sürükleyerek sırala · sağdaki ✕ ile durağı sil</p>`;
-    perPart.forEach((part, gi) => {
-      const color = part.color;
-      if (isSplit) {
-        html += `<div class="part-head"><span class="part-dot" style="background:${color}"></span> Parça ${gi + 1} · ${part.stops.length} durak · ${(part.meters / 1000).toFixed(1)} km · ${fmtHours(part.sec)}</div>`;
-      }
-      let rows = '';
-      rows += rowHtml('<span class="stop-num start">A</span>', state.startText, '<div class="addr-sub">Başlangıç</div>', false, null, null);
-      part.stops.forEach((stopIdx, pos) => {
-        const node = state.stopNodes[stopIdx]; const info = state.stopInfo ? state.stopInfo[stopIdx] : null; const leg = part.legs[pos];
-        const legText = `${(leg.distance.value / 1000).toFixed(1)} km · ${fmtHours(leg.duration.value)}`;
-        const numStyle = isSplit ? ` style="background:${hexA(color, .16)};color:${color}"` : '';
-        rows += rowHtml(`<span class="stop-num"${numStyle}>${pos + 1}</span>`, node.formatted || node.original, stopSubHtml(info, legText), !isSplit, pos, stopIdx);
-      });
-      const endLeg = part.legs[part.legs.length - 1];
-      rows += rowHtml('<span class="stop-num end">B</span>', state.endText, `<div class="addr-sub">Bitiş · ${(endLeg.distance.value / 1000).toFixed(1)} km · ${fmtHours(endLeg.duration.value)}</div>`, false, null, null);
-      html += `<table class="stoplist"><tbody>${rows}</tbody></table>`;
+  function renderList(order, legs, totalKm, driveSec, costPerKm, totalCost) {
+    let rows = '';
+    rows += rowHtml('<span class="stop-num start">A</span>', state.startText, '<div class="addr-sub">Başlangıç</div>', false, null, null);
+    order.forEach((stopIdx, pos) => {
+      const node = state.stopNodes[stopIdx]; const info = state.stopInfo ? state.stopInfo[stopIdx] : null; const leg = legs[pos];
+      const legText = `${(leg.distance / 1000).toFixed(1)} km · ${fmtHours(leg.duration)}`;
+      rows += rowHtml(`<span class="stop-num">${pos + 1}</span>`, node.formatted || node.original, stopSubHtml(info, legText), true, pos, stopIdx);
     });
-    html += `<div class="summary-bar">
-      <div>Toplam: <b>${totalKm.toFixed(1)} km</b></div>
-      <div>Sürüş: <b>${fmtHours(driveSec)}</b></div>
-      <div>Ücret: <b>€${totalCost.toFixed(2)}</b></div>
-    </div>`;
-    els.resultsTable.innerHTML = html;
+    const endLeg = legs[legs.length - 1];
+    rows += rowHtml('<span class="stop-num end">B</span>', state.endText, `<div class="addr-sub">Bitiş · ${(endLeg.distance / 1000).toFixed(1)} km · ${fmtHours(endLeg.duration)}</div>`, false, null, null);
+    els.resultsTable.innerHTML = `
+      <p class="reorder-hint"><svg class="icon" viewBox="0 0 24 24"><path d="M8 6h8M8 12h8M8 18h8M4 6h.01M4 12h.01M4 18h.01"/></svg> Sürükleyerek sırala · sağdaki ✕ ile durağı sil</p>
+      <table class="stoplist"><tbody>${rows}</tbody></table>
+      <div class="summary-bar">
+        <div>Toplam: <b>${totalKm.toFixed(1)} km</b></div>
+        <div>Sürüş: <b>${fmtHours(driveSec)}</b></div>
+        <div>Ücret: <b>€${totalCost.toFixed(2)}</b></div>
+      </div>`;
     attachDnD();
     attachDelete();
   }
@@ -1087,22 +1015,6 @@
   }
 
   // ---- Manual single-stop add (extends the matrices without rebuilding everything) ----
-  async function matrixRow(service, origin, dests) {
-    const dist = [], time = [];
-    for (let i = 0; i < dests.length; i += 25) {
-      const res = await callMatrix(service, [origin], dests.slice(i, i + 25));
-      res.rows[0].elements.forEach(el => { dist.push(el.status === 'OK' ? el.distance.value : Infinity); time.push(el.status === 'OK' ? el.duration.value : Infinity); });
-    }
-    return { dist, time };
-  }
-  async function matrixCol(service, origins, dest) {
-    const dist = [], time = [];
-    for (let i = 0; i < origins.length; i += 25) {
-      const res = await callMatrix(service, origins.slice(i, i + 25), [dest]);
-      res.rows.forEach(r => { const el = r.elements[0]; dist.push(el.status === 'OK' ? el.distance.value : Infinity); time.push(el.status === 'OK' ? el.duration.value : Infinity); });
-    }
-    return { dist, time };
-  }
   function rebuildMatrix(oldM, fromNew, toNew) {
     const N = oldM.length, M = N + 1; // insert new stop at index N-1 (before end), end shifts to M-1
     const nm = Array.from({ length: M }, () => new Array(M).fill(0));
@@ -1130,22 +1042,15 @@
     if (!hasLetters(info.address)) { setStatus('Geçerli bir adres yaz (harf içermeli).', 'bad'); return; }
     els.addStopBtn.disabled = true; setProgress(true, 30, 'Adres ekleniyor...');
     try {
-      const geocoder = new google.maps.Geocoder();
-      const newNode = await geocodeCached(geocoder, info.address);
+      const newNode = await geocodeCached(state.orsKey, info.address);
       const oldNodes = [state.startNode, ...state.stopNodes, state.endNode];
       setProgress(true, 60, 'Mesafeler hesaplanıyor...');
-      let fromNew, toNew;
-      if (state.economy) {
-        const dm = oldNodes.map(n => haversineKm(newNode, n) * 1000);
-        fromNew = { dist: dm, time: dm.map(v => v / 19.4) };
-        toNew = { dist: dm, time: dm.map(v => v / 19.4) };
-      } else {
-        const service = new google.maps.DistanceMatrixService();
-        const oldLL = oldNodes.map(n => new google.maps.LatLng(n.lat, n.lng));
-        const newLL = new google.maps.LatLng(newNode.lat, newNode.lng);
-        fromNew = await matrixRow(service, newLL, oldLL);
-        toNew = await matrixCol(service, oldLL, newLL);
-      }
+      const locs = [...oldNodes.map(n => [n.lng, n.lat]), [newNode.lng, newNode.lat]];
+      const newIdxL = locs.length - 1, n = oldNodes.length;
+      const r1 = await orsMatrix(state.orsKey, locs, [newIdxL], null); // new -> all
+      const r2 = await orsMatrix(state.orsKey, locs, null, [newIdxL]); // all -> new
+      const fromNew = { dist: r1.distances[0].slice(0, n).map(v => v == null ? Infinity : v), time: r1.durations[0].slice(0, n).map(v => v == null ? Infinity : v) };
+      const toNew = { dist: r2.distances.slice(0, n).map(row => row[0] == null ? Infinity : row[0]), time: r2.durations.slice(0, n).map(row => row[0] == null ? Infinity : row[0]) };
       state.distMatrix = rebuildMatrix(state.distMatrix, fromNew.dist, toNew.dist);
       state.timeMatrix = rebuildMatrix(state.timeMatrix, fromNew.time, toNew.time);
       state.stopNodes.push(newNode); state.stopInfo.push(info);
@@ -1173,35 +1078,29 @@
   function csvCell(v) { v = String(v == null ? '' : v); if (/[";\n]/.test(v)) v = '"' + v.replace(/"/g, '""') + '"'; return v; }
   function exportToExcel() {
     if (!state) return;
-    const baseOrder = getActiveOrder();
-    const splitN = Math.min(selectedSplit, Math.max(1, baseOrder.length));
-    const groups = partitionOrder(baseOrder, splitN);
+    const order = getActiveOrder();
     const modeName = state.activeMode === 'time' ? 'En kısa süre' : state.activeMode === 'custom' ? 'Özel sıra' : 'En kısa mesafe';
+    const M = state.distMatrix, T = state.timeMatrix;
+    const seq = [0, ...order.map(i => i + 1), M.length - 1];
+    const legDist = k => M[seq[k]][seq[k + 1]], legTime = k => T[seq[k]][seq[k + 1]];
     const rows = [];
-    rows.push(['Sevkiyat Rotası — ' + modeName + (splitN > 1 ? ' · ' + splitN + ' parça' : '')]);
-    // Column order: A=Tarih, B=Müşteri, C=Ürünler, D=Adet, E=Adres, F=Telefon, G=Sıra, H=Bu durağa mesafe (km), I=Süre, J=Parça
-    rows.push(['Tarih', 'Müşteri', 'Ürünler', 'Adet', 'Adres', 'Telefon', 'Sıra', 'Bu durağa mesafe (km)', 'Süre', 'Parça']);
+    rows.push(['Sevkiyat Rotası — ' + modeName]);
+    // Column order: A=Tarih, B=Müşteri, C=Ürünler, D=Adet, E=Adres, F=Telefon, G=Sıra, H=Bu durağa mesafe (km), I=Süre
+    rows.push(['Tarih', 'Müşteri', 'Ürünler', 'Adet', 'Adres', 'Telefon', 'Sıra', 'Bu durağa mesafe (km)', 'Süre']);
     let totalMeters = 0, totalSec = 0;
-    groups.forEach((gStops, gi) => {
-      const partNo = splitN > 1 ? gi + 1 : '';
-      const dr = state.dirCache['p' + gi + ':' + gStops.join(',')]; const legs = dr ? dr.legs : null;
-      rows.push(['', 'Başlangıç', '', '', state.startText, '', 'A', '', '', partNo]);
-      gStops.forEach((stopIdx, pos) => {
-        const node = state.stopNodes[stopIdx]; const leg = legs ? legs[pos] : null;
-        const info = state.stopInfo ? state.stopInfo[stopIdx] : null;
-        if (leg) { totalMeters += leg.distance.value; totalSec += leg.duration.value; }
-        const productsStr = info && info.products.length ? info.products.map(p => p.name + (p.qty ? ' x' + p.qty : '')).join(' | ') : '';
-        const qtyStr = info && info.products.length ? info.products.reduce((s, p) => s + (parseInt(p.qty, 10) || 0), 0) : '';
-        rows.push([info ? info.date : '', info ? info.customer : '', productsStr, qtyStr, node.formatted || node.original, info ? info.phone : '', pos + 1, leg ? (leg.distance.value / 1000).toFixed(1) : '', leg ? fmtHours(leg.duration.value) : '', partNo]);
-      });
-      const endLeg = legs ? legs[legs.length - 1] : null;
-      if (endLeg) { totalMeters += endLeg.distance.value; totalSec += endLeg.duration.value; }
-      rows.push(['', 'Bitiş', '', '', state.endText, '', 'B', endLeg ? (endLeg.distance.value / 1000).toFixed(1) : '', endLeg ? fmtHours(endLeg.duration.value) : '', partNo]);
-      if (splitN > 1) rows.push([]);
+    rows.push(['', 'Başlangıç', '', '', state.startText, '', 'A', '', '']);
+    order.forEach((stopIdx, pos) => {
+      const node = state.stopNodes[stopIdx]; const info = state.stopInfo ? state.stopInfo[stopIdx] : null;
+      const dm = legDist(pos), tm = legTime(pos); totalMeters += dm; totalSec += tm;
+      const productsStr = info && info.products.length ? info.products.map(p => p.name + (p.qty ? ' x' + p.qty : '')).join(' | ') : '';
+      const qtyStr = info && info.products.length ? info.products.reduce((s, p) => s + (parseInt(p.qty, 10) || 0), 0) : '';
+      rows.push([info ? info.date : '', info ? info.customer : '', productsStr, qtyStr, node.formatted || node.original, info ? info.phone : '', pos + 1, (dm / 1000).toFixed(1), fmtHours(tm)]);
     });
+    const endDm = legDist(order.length), endTm = legTime(order.length); totalMeters += endDm; totalSec += endTm;
+    rows.push(['', 'Bitiş', '', '', state.endText, '', 'B', (endDm / 1000).toFixed(1), fmtHours(endTm)]);
     const totalKm = totalMeters / 1000;
     const stopMinutes = parseFloat(els.stopMinutes.value) || 0;
-    const totalTimeSec = totalSec + baseOrder.length * stopMinutes * 60;
+    const totalTimeSec = totalSec + order.length * stopMinutes * 60;
     const costPerKm = parseFloat(els.costPerKm.value) || 0;
     rows.push([]);
     rows.push(['Toplam mesafe', totalKm.toFixed(1) + ' km']);
@@ -1241,43 +1140,36 @@
 
     saveSettings();
     els.calcBtn.disabled = true; els.exportBtn.disabled = true; renderFailures([]);
-    setStatus('Google Maps yükleniyor...', null); setProgress(true, 0, 'Başlatılıyor...');
+    setStatus('Harita hazırlanıyor...', null); setProgress(true, 0, 'Başlatılıyor...');
     try {
-      await loadGoogleMaps(apiKey); ensureMap();
-      const geocoder = new google.maps.Geocoder();
+      ensureMap(); setTimeout(() => leafletMap && leafletMap.invalidateSize(), 100);
       const totalG = validOrders.length + 1 + (roundTrip ? 0 : 1);
       let doneG = 0;
       const tick = () => setProgress(true, Math.round((++doneG / totalG) * 35), 'Adresler konumlandırılıyor (' + doneG + '/' + totalG + ')...');
 
       let startNode, endNode;
-      try { startNode = await geocodeCached(geocoder, startAddr); tick(); } catch (e) { throw new Error('Başlangıç adresi bulunamadı: ' + startAddr); }
-      if (roundTrip) { endNode = startNode; } else { try { endNode = await geocodeCached(geocoder, endAddr); tick(); } catch (e) { throw new Error('Bitiş adresi bulunamadı: ' + endAddr); } }
+      try { startNode = await geocodeCached(apiKey, startAddr); tick(); } catch (e) { throw new Error('Başlangıç adresi bulunamadı: ' + startAddr); }
+      if (roundTrip) { endNode = startNode; } else { try { endNode = await geocodeCached(apiKey, endAddr); tick(); } catch (e) { throw new Error('Bitiş adresi bulunamadı: ' + endAddr); } }
 
-      // Fault-tolerant stop geocoding: a bad address is skipped (recorded), not fatal
+      // Fault-tolerant stop geocoding: a bad address is skipped (recorded), not fatal.
+      // Low concurrency to stay within ORS' free per-minute rate limit.
       const stopNodes = [], stopInfo = [];
-      await mapWithConcurrency(validOrders, 5, async (o) => {
-        try { const node = await geocodeCached(geocoder, o.address); stopNodes.push(node); stopInfo.push(o); }
+      await mapWithConcurrency(validOrders, 3, async (o) => {
+        try { const node = await geocodeCached(apiKey, o.address); stopNodes.push(node); stopInfo.push(o); }
         catch (e) { failures.push({ order: o, reason: geoReason(e && e.status) }); }
         tick();
       });
       if (stopNodes.length === 0) throw new Error('Hiçbir müşteri adresi bulunamadı. Adresleri kontrol et.');
 
-      const economy = els.econMode.checked;
       const nodes = [startNode, ...stopNodes, endNode];
-      let dist, time;
-      if (economy) {
-        setProgress(true, 60, 'Sıralama hesaplanıyor (tutumlu mod)...');
-        ({ dist, time } = buildMatricesLocal(nodes));
-      } else {
-        setProgress(true, 38, 'Gerçek yol mesafeleri hesaplanıyor...');
-        ({ dist, time } = await buildMatrices(nodes, (done, total) => setProgress(true, 38 + Math.round((done / total) * 40), 'Gerçek yol mesafeleri (' + done + '/' + total + ')...')));
-      }
+      setProgress(true, 40, 'Gerçek yol mesafeleri hesaplanıyor...');
+      const { dist, time } = await buildMatrices(apiKey, nodes, (done, total) => setProgress(true, 40 + Math.round((done / total) * 38), 'Mesafe matrisi (' + done + '/' + total + ')...'));
 
       setProgress(true, 80, 'Sıralama optimize ediliyor...');
       const orderDistance = solveTSP(dist), orderTime = solveTSP(time);
 
       state = {
-        startNode, endNode, stopNodes, stopInfo, economy,
+        startNode, endNode, stopNodes, stopInfo, orsKey: apiKey,
         startText: startNode.formatted || startAddr, endText: endNode.formatted || endAddr,
         distMatrix: dist, timeMatrix: time,
         orders: { distance: orderDistance, time: orderTime },
