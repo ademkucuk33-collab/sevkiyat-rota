@@ -567,7 +567,7 @@
     const data = await res.json();
     if (!data.features || !data.features.length) { const e = new Error('no results'); e.status = 'ZERO_RESULTS'; throw e; }
     const f = data.features[0], c = f.geometry.coordinates; // [lng, lat]
-    return { lat: c[1], lng: c[0], formatted: f.properties.label, original: address };
+    return { lat: c[1], lng: c[0], formatted: f.properties.label, confidence: f.properties.confidence, original: address };
   }
   async function orsMatrix(key, locsLngLat, sources, destinations) {
     const body = { locations: locsLngLat, metrics: ['distance', 'duration'], units: 'm' };
@@ -578,7 +578,10 @@
     return res.json();
   }
   async function orsDirections(key, coordsLngLat) {
-    const res = await fetch(ORS_BASE + '/v2/directions/driving-car/geojson', { method: 'POST', headers: { 'Authorization': key, 'Content-Type': 'application/json' }, body: JSON.stringify({ coordinates: coordsLngLat }) });
+    // radiuses: -1 lets ORS snap each waypoint to the nearest road with no distance cap
+    // (avoids error 2010 when a geocoded point is just outside the routing graph).
+    const body = { coordinates: coordsLngLat, radiuses: coordsLngLat.map(() => -1), continue_straight: false };
+    const res = await fetch(ORS_BASE + '/v2/directions/driving-car/geojson', { method: 'POST', headers: { 'Authorization': key, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     if (!res.ok) throw new Error('Rota çizimi alınamadı (ORS ' + res.status + ').');
     return res.json();
   }
@@ -601,9 +604,9 @@
   async function geocodeCached(key, address) {
     const k = geoKey(address);
     const hit = geoCache[k];
-    if (hit) return { lat: hit.lat, lng: hit.lng, formatted: hit.formatted, original: address };
+    if (hit) return { lat: hit.lat, lng: hit.lng, formatted: hit.formatted, confidence: hit.confidence, original: address };
     const node = await orsGeocode(key, address);
-    geoCache[k] = { lat: node.lat, lng: node.lng, formatted: node.formatted };
+    geoCache[k] = { lat: node.lat, lng: node.lng, formatted: node.formatted, confidence: node.confidence };
     try { localStorage.setItem(GEO_CACHE_KEY, JSON.stringify(geoCache)); } catch (e) {}
     return node;
   }
@@ -969,7 +972,8 @@
       renderList(order, legs, totalKm, totalSec, costPerKm, totalCost);
       updateModeBar();
       setProgress(true, 100, 'Tamamlandı.');
-    } catch (err) { console.error(err); setStatus(err.message || 'Rota çizilemedi.', 'bad'); }
+      return true;
+    } catch (err) { console.error(err); setStatus(err.message || 'Rota çizilemedi.', 'bad'); return false; }
     finally { rendering = false; setModeDisabled(false); setTimeout(() => setProgress(false), 600); }
   }
   function setModeDisabled(v) { [els.modeDistance, els.modeTime, els.modeCustom].forEach(b => { b.style.pointerEvents = v ? 'none' : ''; b.style.opacity = v ? '.6' : ''; }); }
@@ -1218,12 +1222,15 @@
 
       els.modeCustom.style.display = 'none';
       els.kpis.style.display = 'grid';
-      await renderActive();
+      const ok = await renderActive();
+      renderFailures(failures);
+      if (!ok) return; // renderActive already set an error status
       els.exportBtn.disabled = false;
       els.addStopBox.style.display = 'block';
-      renderFailures(failures);
-      const warn = failures.length ? ' ⚠ ' + failures.length + ' adres atlandı — aşağıdaki "Bulunamayan Adresler" bölümüne bak.' : '';
-      setStatus('✓ Rota hesaplandı — ' + stopNodes.length + ' durak (' + (selectedMode === 'time' ? 'en kısa süre' : 'en kısa mesafe') + ').' + warn, failures.length ? 'warn' : 'ok');
+      const lowConf = [startNode, ...stopNodes].filter(n => typeof n.confidence === 'number' && n.confidence < 0.4).length;
+      let warn = failures.length ? ' ⚠ ' + failures.length + ' adres atlandı — "Bulunamayan Adresler" bölümüne bak.' : '';
+      if (lowConf) warn += ' ⚠ ' + lowConf + ' adres şüpheli eşleşti — durak listesinde bulunan adresleri kontrol et.';
+      setStatus('✓ Rota hesaplandı — ' + stopNodes.length + ' durak (' + (selectedMode === 'time' ? 'en kısa süre' : 'en kısa mesafe') + ').' + warn, (failures.length || lowConf) ? 'warn' : 'ok');
     } catch (err) { console.error(err); setStatus(err.message || 'Beklenmeyen bir hata oluştu.', 'bad'); }
     finally { els.calcBtn.disabled = false; setTimeout(() => setProgress(false), 800); }
   }
