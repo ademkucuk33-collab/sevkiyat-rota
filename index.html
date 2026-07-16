@@ -378,17 +378,11 @@
         </div>
       </div>
 
-      <div class="seg-wrap">
-        <div class="seg-caption">
-          <svg class="icon" viewBox="0 0 24 24" style="width:15px;height:15px"><path d="M6 3v12M6 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM18 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM18 9c0 6-12 4-12 12"/></svg>
-          Rotayı böl (başlangıç/bitiş sabit kalır)
-        </div>
-        <div class="seg">
-          <button class="seg-btn active" id="split1">Tek rota</button>
-          <button class="seg-btn" id="split2">2 parça</button>
-          <button class="seg-btn" id="split3">3 parça</button>
-        </div>
+      <div class="checkbox-row" style="margin-top:14px">
+        <input type="checkbox" id="econMode" checked>
+        <label for="econMode">Tutumlu mod — daha az API tüketimi</label>
       </div>
+      <p class="hint">Açıkken sıralama kuş uçuşu mesafeyle yapılır (pahalı <b>Distance Matrix API</b> kullanılmaz) → çok daha az tüketim. Kapatırsan gerçek yol mesafesiyle hesaplar (biraz daha isabetli, ama belirgin şekilde daha fazla tüketim).</p>
 
       <button class="btn-primary" id="calcBtn">
         <svg class="icon" viewBox="0 0 24 24" stroke="#fff"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
@@ -541,9 +535,7 @@
     modeCustom: document.getElementById('modeCustom'),
     modeDistanceSub: document.getElementById('modeDistanceSub'),
     modeTimeSub: document.getElementById('modeTimeSub'),
-    split1: document.getElementById('split1'),
-    split2: document.getElementById('split2'),
-    split3: document.getElementById('split3'),
+    econMode: document.getElementById('econMode'),
     addStopBox: document.getElementById('addStopBox'),
     addAddr: document.getElementById('addAddr'),
     addStopBtn: document.getElementById('addStopBtn'),
@@ -557,7 +549,38 @@
   };
 
   const STORAGE_KEY = 'sevkiyat-rota-settings-v2';
-  const FIELDS_TO_PERSIST = ['apiKey', 'costPerKm', 'stopMinutes', 'startAddr', 'endAddr', 'roundTrip'];
+  const FIELDS_TO_PERSIST = ['apiKey', 'costPerKm', 'stopMinutes', 'startAddr', 'endAddr', 'roundTrip', 'econMode'];
+
+  // Geocode cache — repeated addresses (same customers each week) are geocoded once, then reused for free.
+  const GEO_CACHE_KEY = 'sevkiyat-geocache-v1';
+  let geoCache = {};
+  try { geoCache = JSON.parse(localStorage.getItem(GEO_CACHE_KEY) || '{}'); } catch (e) { geoCache = {}; }
+  function geoKey(a) { return (a || '').trim().toLowerCase().replace(/\s+/g, ' '); }
+  async function geocodeCached(geocoder, address) {
+    const k = geoKey(address);
+    const hit = geoCache[k];
+    if (hit) return { lat: hit.lat, lng: hit.lng, formatted: hit.formatted, original: address };
+    const node = await geocodeOne(geocoder, address);
+    geoCache[k] = { lat: node.lat, lng: node.lng, formatted: node.formatted };
+    try { localStorage.setItem(GEO_CACHE_KEY, JSON.stringify(geoCache)); } catch (e) {}
+    return node;
+  }
+  // Free client-side distance (no API). Only used to decide the visiting order; displayed
+  // km/time still come from the real Directions draw.
+  function haversineKm(a, b) {
+    const R = 6371, dLat = (b.lat - a.lat) * Math.PI / 180, dLng = (b.lng - a.lng) * Math.PI / 180;
+    const la1 = a.lat * Math.PI / 180, la2 = b.lat * Math.PI / 180;
+    const h = Math.sin(dLat / 2) ** 2 + Math.cos(la1) * Math.cos(la2) * Math.sin(dLng / 2) ** 2;
+    return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+  }
+  function buildMatricesLocal(nodes) {
+    const N = nodes.length, dist = [], time = [];
+    for (let i = 0; i < N; i++) {
+      dist.push(new Array(N)); time.push(new Array(N));
+      for (let j = 0; j < N; j++) { const m = i === j ? 0 : haversineKm(nodes[i], nodes[j]) * 1000; dist[i][j] = m; time[i][j] = m / 19.4; }
+    }
+    return { dist, time };
+  }
 
   function loadSettings() {
     try {
@@ -1108,14 +1131,21 @@
     els.addStopBtn.disabled = true; setProgress(true, 30, 'Adres ekleniyor...');
     try {
       const geocoder = new google.maps.Geocoder();
-      const newNode = await geocodeOne(geocoder, info.address);
-      const service = new google.maps.DistanceMatrixService();
+      const newNode = await geocodeCached(geocoder, info.address);
       const oldNodes = [state.startNode, ...state.stopNodes, state.endNode];
-      const oldLL = oldNodes.map(n => new google.maps.LatLng(n.lat, n.lng));
-      const newLL = new google.maps.LatLng(newNode.lat, newNode.lng);
       setProgress(true, 60, 'Mesafeler hesaplanıyor...');
-      const fromNew = await matrixRow(service, newLL, oldLL);
-      const toNew = await matrixCol(service, oldLL, newLL);
+      let fromNew, toNew;
+      if (state.economy) {
+        const dm = oldNodes.map(n => haversineKm(newNode, n) * 1000);
+        fromNew = { dist: dm, time: dm.map(v => v / 19.4) };
+        toNew = { dist: dm, time: dm.map(v => v / 19.4) };
+      } else {
+        const service = new google.maps.DistanceMatrixService();
+        const oldLL = oldNodes.map(n => new google.maps.LatLng(n.lat, n.lng));
+        const newLL = new google.maps.LatLng(newNode.lat, newNode.lng);
+        fromNew = await matrixRow(service, newLL, oldLL);
+        toNew = await matrixCol(service, oldLL, newLL);
+      }
       state.distMatrix = rebuildMatrix(state.distMatrix, fromNew.dist, toNew.dist);
       state.timeMatrix = rebuildMatrix(state.timeMatrix, fromNew.time, toNew.time);
       state.stopNodes.push(newNode); state.stopInfo.push(info);
@@ -1134,12 +1164,6 @@
   }
   els.addStopBtn.addEventListener('click', addManualStop);
   els.addAddr.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addManualStop(); } });
-
-  els.splitBtns = [els.split1, els.split2, els.split3];
-  function highlightSplit() { els.splitBtns.forEach((b, i) => b.classList.toggle('active', selectedSplit === i + 1)); }
-  els.split1.addEventListener('click', () => { selectedSplit = 1; highlightSplit(); if (state) renderActive(); });
-  els.split2.addEventListener('click', () => { selectedSplit = 2; highlightSplit(); if (state) renderActive(); });
-  els.split3.addEventListener('click', () => { selectedSplit = 3; highlightSplit(); if (state) renderActive(); });
 
   els.modeDistance.addEventListener('click', () => { selectedMode = 'distance'; if (state) { state.activeMode = 'distance'; renderActive(); } else highlightMode(); });
   els.modeTime.addEventListener('click', () => { selectedMode = 'time'; if (state) { state.activeMode = 'time'; renderActive(); } else highlightMode(); });
@@ -1226,27 +1250,34 @@
       const tick = () => setProgress(true, Math.round((++doneG / totalG) * 35), 'Adresler konumlandırılıyor (' + doneG + '/' + totalG + ')...');
 
       let startNode, endNode;
-      try { startNode = await geocodeOne(geocoder, startAddr); tick(); } catch (e) { throw new Error('Başlangıç adresi bulunamadı: ' + startAddr); }
-      if (roundTrip) { endNode = startNode; } else { try { endNode = await geocodeOne(geocoder, endAddr); tick(); } catch (e) { throw new Error('Bitiş adresi bulunamadı: ' + endAddr); } }
+      try { startNode = await geocodeCached(geocoder, startAddr); tick(); } catch (e) { throw new Error('Başlangıç adresi bulunamadı: ' + startAddr); }
+      if (roundTrip) { endNode = startNode; } else { try { endNode = await geocodeCached(geocoder, endAddr); tick(); } catch (e) { throw new Error('Bitiş adresi bulunamadı: ' + endAddr); } }
 
       // Fault-tolerant stop geocoding: a bad address is skipped (recorded), not fatal
       const stopNodes = [], stopInfo = [];
       await mapWithConcurrency(validOrders, 5, async (o) => {
-        try { const node = await geocodeOne(geocoder, o.address); stopNodes.push(node); stopInfo.push(o); }
+        try { const node = await geocodeCached(geocoder, o.address); stopNodes.push(node); stopInfo.push(o); }
         catch (e) { failures.push({ order: o, reason: geoReason(e && e.status) }); }
         tick();
       });
       if (stopNodes.length === 0) throw new Error('Hiçbir müşteri adresi bulunamadı. Adresleri kontrol et.');
 
-      setProgress(true, 38, 'Gerçek yol mesafeleri hesaplanıyor...');
+      const economy = els.econMode.checked;
       const nodes = [startNode, ...stopNodes, endNode];
-      const { dist, time } = await buildMatrices(nodes, (done, total) => setProgress(true, 38 + Math.round((done / total) * 40), 'Gerçek yol mesafeleri (' + done + '/' + total + ')...'));
+      let dist, time;
+      if (economy) {
+        setProgress(true, 60, 'Sıralama hesaplanıyor (tutumlu mod)...');
+        ({ dist, time } = buildMatricesLocal(nodes));
+      } else {
+        setProgress(true, 38, 'Gerçek yol mesafeleri hesaplanıyor...');
+        ({ dist, time } = await buildMatrices(nodes, (done, total) => setProgress(true, 38 + Math.round((done / total) * 40), 'Gerçek yol mesafeleri (' + done + '/' + total + ')...')));
+      }
 
       setProgress(true, 80, 'Sıralama optimize ediliyor...');
       const orderDistance = solveTSP(dist), orderTime = solveTSP(time);
 
       state = {
-        startNode, endNode, stopNodes, stopInfo,
+        startNode, endNode, stopNodes, stopInfo, economy,
         startText: startNode.formatted || startAddr, endText: endNode.formatted || endAddr,
         distMatrix: dist, timeMatrix: time,
         orders: { distance: orderDistance, time: orderTime },
@@ -1268,7 +1299,6 @@
 
   updateStopCountHint();
   highlightMode();
-  highlightSplit();
 })();
 </script>
 
