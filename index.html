@@ -204,6 +204,16 @@
   .addr-sub { font-size: 11px; color: var(--muted-soft); margin-top: 1px; }
   .summary-bar { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 14px; padding-top: 14px; border-top: 1px dashed var(--border); font-size: 12.5px; color: var(--muted); }
   .summary-bar b { color: var(--text); }
+  .del-cell { width: 26px; text-align: center; }
+  .del-btn { width: 22px; height: 22px; border-radius: 6px; background: transparent; color: var(--muted-soft); font-size: 12px; font-weight: 700; line-height: 1; border: 1px solid transparent; }
+  .del-btn:hover { background: var(--bad-bg); color: var(--bad); border-color: var(--bad); }
+  .part-head { display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 800; color: var(--text); margin: 16px 0 6px; padding-top: 12px; border-top: 1px solid var(--border-soft); }
+  .part-head:first-child { margin-top: 4px; padding-top: 0; border-top: none; }
+  .part-dot { width: 11px; height: 11px; border-radius: 50%; flex: none; }
+  #addStopBox { margin-top: 16px; padding-top: 14px; border-top: 1px dashed var(--border); }
+  .btn-add { display: inline-flex; align-items: center; justify-content: center; gap: 7px; width: 100%; margin-top: 8px; padding: 9px 14px; border-radius: 9px; background: var(--accent); color: #fff; font-size: 13px; font-weight: 700; }
+  .btn-add:hover:not(:disabled) { background: var(--accent-dark); }
+  .btn-add:disabled { background: var(--border); color: var(--muted-soft); cursor: not-allowed; }
 
   .empty-state { color: var(--muted-soft); font-size: 13.5px; padding: 40px 20px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
   .empty-state svg { width: 32px; height: 32px; stroke: var(--muted-soft); opacity: .6; }
@@ -368,6 +378,18 @@
         </div>
       </div>
 
+      <div class="seg-wrap">
+        <div class="seg-caption">
+          <svg class="icon" viewBox="0 0 24 24" style="width:15px;height:15px"><path d="M6 3v12M6 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM18 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM18 9c0 6-12 4-12 12"/></svg>
+          Rotayı böl (başlangıç/bitiş sabit kalır)
+        </div>
+        <div class="seg">
+          <button class="seg-btn active" id="split1">Tek rota</button>
+          <button class="seg-btn" id="split2">2 parça</button>
+          <button class="seg-btn" id="split3">3 parça</button>
+        </div>
+      </div>
+
       <button class="btn-primary" id="calcBtn">
         <svg class="icon" viewBox="0 0 24 24" stroke="#fff"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
         Rota Hesapla
@@ -383,6 +405,15 @@
           <svg viewBox="0 0 24 24" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
           Henüz bir rota hesaplanmadı
         </div>
+      </div>
+
+      <div id="addStopBox" style="display:none">
+        <label for="addAddr">➕ Manuel durak ekle</label>
+        <input type="text" id="addAddr" placeholder="Tek adres (veya Excel satırı) — listeyi bozmadan ekler">
+        <button class="btn-add" id="addStopBtn" type="button">
+          <svg class="icon" viewBox="0 0 24 24" stroke="#fff" style="width:16px;height:16px"><path d="M12 5v14M5 12h14"/></svg>
+          Durağı Rotaya Ekle
+        </button>
       </div>
 
       </div><!-- /rd-body -->
@@ -510,6 +541,12 @@
     modeCustom: document.getElementById('modeCustom'),
     modeDistanceSub: document.getElementById('modeDistanceSub'),
     modeTimeSub: document.getElementById('modeTimeSub'),
+    split1: document.getElementById('split1'),
+    split2: document.getElementById('split2'),
+    split3: document.getElementById('split3'),
+    addStopBox: document.getElementById('addStopBox'),
+    addAddr: document.getElementById('addAddr'),
+    addStopBtn: document.getElementById('addStopBtn'),
     kpis: document.getElementById('kpis'),
     kpiKm: document.getElementById('kpiKm'),
     kpiTotalTime: document.getElementById('kpiTotalTime'),
@@ -829,9 +866,57 @@
     });
     googleMapInstance.fitBounds(bounds);
   }
+  // Draw one or more colored route groups (used for route splitting)
+  function drawMulti(groups) {
+    clearMapOverlays();
+    const bounds = new google.maps.LatLngBounds();
+    groups.forEach(g => {
+      g.directionsResults.forEach(result => {
+        const renderer = new google.maps.DirectionsRenderer({ suppressMarkers: true, preserveViewport: true, polylineOptions: { strokeColor: g.color, strokeWeight: 4, strokeOpacity: 0.85 } });
+        renderer.setMap(googleMapInstance); renderer.setDirections(result); activeRenderers.push(renderer);
+        result.routes[0].legs.forEach(leg => { bounds.extend(leg.start_location); bounds.extend(leg.end_location); });
+      });
+      g.nodeSeq.forEach((node, i) => {
+        if (i === 0 || i === g.nodeSeq.length - 1) return; // start/end drawn once below
+        const marker = new google.maps.Marker({
+          position: { lat: node.lat, lng: node.lng }, map: googleMapInstance,
+          label: { text: String(i), color: '#fff', fontSize: '11px', fontWeight: '700' },
+          icon: { path: google.maps.SymbolPath.CIRCLE, scale: 10, fillColor: g.color, fillOpacity: 1, strokeColor: '#fff', strokeWeight: 2 },
+        });
+        activeMarkers.push(marker);
+      });
+    });
+    const seq0 = groups[0].nodeSeq;
+    [[seq0[0], 'A', '#059669'], [seq0[seq0.length - 1], 'B', '#dc2626']].forEach(([node, txt, col]) => {
+      activeMarkers.push(new google.maps.Marker({
+        position: { lat: node.lat, lng: node.lng }, map: googleMapInstance,
+        label: { text: txt, color: '#fff', fontSize: '11px', fontWeight: '700' },
+        icon: { path: google.maps.SymbolPath.CIRCLE, scale: 12, fillColor: col, fillOpacity: 1, strokeColor: '#fff', strokeWeight: 2 },
+      }));
+      bounds.extend({ lat: node.lat, lng: node.lng });
+    });
+    googleMapInstance.fitBounds(bounds);
+  }
 
   // ---- State + rendering ----
-  let state = null, rendering = false, selectedMode = 'distance';
+  let state = null, rendering = false, selectedMode = 'distance', selectedSplit = 1;
+  const ROUTE_COLORS = ['#4f46e5', '#0ea5e9', '#f59e0b'];
+  function hexA(hex, a) { const n = parseInt(hex.slice(1), 16); return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`; }
+  function partitionOrder(order, n) {
+    n = Math.min(n, order.length) || 1;
+    const parts = Array.from({ length: n }, () => []);
+    order.forEach((v, i) => parts[Math.floor(i * n / order.length)].push(v));
+    return parts.filter(p => p.length);
+  }
+  function cheapestInsert(order, stopIdx, matrix) {
+    const seq = [0, ...order.map(i => i + 1), matrix.length - 1];
+    const nn = stopIdx + 1; let bestPos = 0, best = Infinity;
+    for (let p = 0; p < seq.length - 1; p++) {
+      const d = matrix[seq[p]][nn] + matrix[nn][seq[p + 1]] - matrix[seq[p]][seq[p + 1]];
+      if (d < best) { best = d; bestPos = p; }
+    }
+    const out = order.slice(); out.splice(bestPos, 0, stopIdx); return out;
+  }
 
   function getActiveOrder() {
     if (!state) return [];
@@ -858,22 +943,37 @@
   async function renderActive() {
     if (!state || rendering) return; rendering = true; setModeDisabled(true);
     try {
-      const order = getActiveOrder();
-      const nodeSeq = [state.startNode, ...order.map(i => state.stopNodes[i]), state.endNode];
-      const nodeLLs = nodeSeq.map(n => ({ lat: n.lat, lng: n.lng }));
-      const key = order.join(',');
-      setProgress(true, 88, 'Rota çiziliyor...');
-      let dr = state.dirCache[key]; if (!dr) { dr = await buildFullRoute(nodeLLs); state.dirCache[key] = dr; }
-      drawRoute(dr.directionsResults, nodeSeq);
-      let m = 0, s = 0; dr.legs.forEach(l => { m += l.distance.value; s += l.duration.value; });
-      const totalKm = m / 1000; const stopMinutes = parseFloat(els.stopMinutes.value) || 0;
-      const totalTimeSeconds = s + order.length * stopMinutes * 60;
+      const baseOrder = getActiveOrder();
+      if (baseOrder.length === 0) {
+        clearMapOverlays();
+        els.resultsTable.innerHTML = '<div class="empty-state">Listede durak kalmadı. Yeni adres ekle veya baştan hesapla.</div>';
+        els.kpiKm.textContent = '0 km'; els.kpiTotalTime.textContent = '—'; els.kpiStops.textContent = '0'; els.kpiCost.textContent = '€0.00';
+        updateModeBar(); setProgress(false); return;
+      }
+      const splitN = Math.min(selectedSplit, baseOrder.length);
+      const groups = partitionOrder(baseOrder, splitN);
+      setProgress(true, 84, 'Rota çiziliyor...');
+      const drawGroups = [], perPart = [];
+      let totalMeters = 0, totalSec = 0;
+      for (let gi = 0; gi < groups.length; gi++) {
+        const gStops = groups[gi];
+        const nodeSeq = [state.startNode, ...gStops.map(i => state.stopNodes[i]), state.endNode];
+        const key = 'p' + gi + ':' + gStops.join(',');
+        let dr = state.dirCache[key]; if (!dr) { dr = await buildFullRoute(nodeSeq.map(n => ({ lat: n.lat, lng: n.lng }))); state.dirCache[key] = dr; }
+        drawGroups.push({ directionsResults: dr.directionsResults, nodeSeq, color: ROUTE_COLORS[gi % ROUTE_COLORS.length] });
+        let m = 0, s = 0; dr.legs.forEach(l => { m += l.distance.value; s += l.duration.value; });
+        perPart.push({ stops: gStops, legs: dr.legs, meters: m, sec: s, color: ROUTE_COLORS[gi % ROUTE_COLORS.length] });
+        totalMeters += m; totalSec += s;
+      }
+      drawMulti(drawGroups);
+      const totalKm = totalMeters / 1000; const stopMinutes = parseFloat(els.stopMinutes.value) || 0;
+      const totalTimeSeconds = totalSec + baseOrder.length * stopMinutes * 60;
       const costPerKm = parseFloat(els.costPerKm.value) || 0; const totalCost = totalKm * costPerKm;
       els.kpiKm.textContent = totalKm.toFixed(1) + ' km';
       els.kpiTotalTime.textContent = fmtHours(totalTimeSeconds);
-      els.kpiStops.textContent = String(order.length);
+      els.kpiStops.textContent = String(baseOrder.length);
       els.kpiCost.textContent = '€' + totalCost.toFixed(2);
-      renderTable(order, dr.legs, totalKm, s, costPerKm, totalCost);
+      renderList(perPart, totalKm, totalSec, costPerKm, totalCost, groups.length > 1);
       updateModeBar();
       setProgress(true, 100, 'Tamamlandı.');
     } catch (err) { console.error(err); setStatus(err.message || 'Rota çizilemedi.', 'bad'); }
@@ -897,32 +997,52 @@
     parts.push('<div class="addr-sub">↳ ' + legText + '</div>');
     return parts.join('');
   }
-  function renderTable(order, legs, totalKm, driveSec, costPerKm, totalCost) {
-    const row = (numHtml, addr, subHtml, draggable, pos) => `
-      <tr ${draggable ? `draggable="true" data-pos="${pos}"` : 'data-fixed="1"'}>
-        <td class="num-cell">${numHtml}</td>
-        <td class="drag-cell">${draggable ? '⠿' : ''}</td>
-        <td><div class="addr-main">${escapeHtml(addr)}</div>${subHtml || ''}</td>
-      </tr>`;
-    let rows = '';
-    rows += row('<span class="stop-num start">A</span>', state.startText, '<div class="addr-sub">Başlangıç</div>', false);
-    order.forEach((stopIdx, pos) => {
-      const node = state.stopNodes[stopIdx]; const leg = legs[pos];
-      const info = state.stopInfo ? state.stopInfo[stopIdx] : null;
-      const legText = `${(leg.distance.value / 1000).toFixed(1)} km · ${fmtHours(leg.duration.value)}`;
-      rows += row(`<span class="stop-num">${pos + 1}</span>`, node.formatted || node.original, stopSubHtml(info, legText), true, pos);
+  function rowHtml(numHtml, addr, subHtml, draggable, pos, stopIdx) {
+    const isStop = stopIdx != null;
+    return `<tr ${draggable ? `draggable="true" data-pos="${pos}"` : 'data-fixed="1"'}${isStop ? ` data-stop="${stopIdx}"` : ''}>
+      <td class="num-cell">${numHtml}</td>
+      <td class="drag-cell">${draggable ? '⠿' : ''}</td>
+      <td><div class="addr-main">${escapeHtml(addr)}</div>${subHtml || ''}</td>
+      <td class="del-cell">${isStop ? `<button class="del-btn" data-del="${stopIdx}" title="Bu durağı listeden sil">✕</button>` : ''}</td>
+    </tr>`;
+  }
+  function renderList(perPart, totalKm, driveSec, costPerKm, totalCost, isSplit) {
+    let html = '';
+    if (!isSplit) html += `<p class="reorder-hint"><svg class="icon" viewBox="0 0 24 24"><path d="M8 6h8M8 12h8M8 18h8M4 6h.01M4 12h.01M4 18h.01"/></svg> Sürükleyerek sırala · sağdaki ✕ ile durağı sil</p>`;
+    perPart.forEach((part, gi) => {
+      const color = part.color;
+      if (isSplit) {
+        html += `<div class="part-head"><span class="part-dot" style="background:${color}"></span> Parça ${gi + 1} · ${part.stops.length} durak · ${(part.meters / 1000).toFixed(1)} km · ${fmtHours(part.sec)}</div>`;
+      }
+      let rows = '';
+      rows += rowHtml('<span class="stop-num start">A</span>', state.startText, '<div class="addr-sub">Başlangıç</div>', false, null, null);
+      part.stops.forEach((stopIdx, pos) => {
+        const node = state.stopNodes[stopIdx]; const info = state.stopInfo ? state.stopInfo[stopIdx] : null; const leg = part.legs[pos];
+        const legText = `${(leg.distance.value / 1000).toFixed(1)} km · ${fmtHours(leg.duration.value)}`;
+        const numStyle = isSplit ? ` style="background:${hexA(color, .16)};color:${color}"` : '';
+        rows += rowHtml(`<span class="stop-num"${numStyle}>${pos + 1}</span>`, node.formatted || node.original, stopSubHtml(info, legText), !isSplit, pos, stopIdx);
+      });
+      const endLeg = part.legs[part.legs.length - 1];
+      rows += rowHtml('<span class="stop-num end">B</span>', state.endText, `<div class="addr-sub">Bitiş · ${(endLeg.distance.value / 1000).toFixed(1)} km · ${fmtHours(endLeg.duration.value)}</div>`, false, null, null);
+      html += `<table class="stoplist"><tbody>${rows}</tbody></table>`;
     });
-    const endLeg = legs[legs.length - 1];
-    rows += row('<span class="stop-num end">B</span>', state.endText, `<div class="addr-sub">Bitiş · ${(endLeg.distance.value / 1000).toFixed(1)} km · ${fmtHours(endLeg.duration.value)}</div>`, false);
-    els.resultsTable.innerHTML = `
-      <p class="reorder-hint"><svg class="icon" viewBox="0 0 24 24"><path d="M8 6h8M8 12h8M8 18h8M4 6h.01M4 12h.01M4 18h.01"/></svg> Durakları sürükleyip bırakarak sırayı değiştirebilirsin.</p>
-      <table class="stoplist"><tbody>${rows}</tbody></table>
-      <div class="summary-bar">
-        <div>Toplam: <b>${totalKm.toFixed(1)} km</b></div>
-        <div>Sürüş: <b>${fmtHours(driveSec)}</b></div>
-        <div>Ücret: <b>€${totalCost.toFixed(2)}</b></div>
-      </div>`;
+    html += `<div class="summary-bar">
+      <div>Toplam: <b>${totalKm.toFixed(1)} km</b></div>
+      <div>Sürüş: <b>${fmtHours(driveSec)}</b></div>
+      <div>Ücret: <b>€${totalCost.toFixed(2)}</b></div>
+    </div>`;
+    els.resultsTable.innerHTML = html;
     attachDnD();
+    attachDelete();
+  }
+  function attachDelete() {
+    els.resultsTable.querySelectorAll('.del-btn').forEach(b => b.addEventListener('click', () => deleteStop(+b.dataset.del)));
+  }
+  function deleteStop(stopIdx) {
+    if (!state) return;
+    ['distance', 'time'].forEach(k => { state.orders[k] = state.orders[k].filter(i => i !== stopIdx); });
+    if (state.customOrder) state.customOrder = state.customOrder.filter(i => i !== stopIdx);
+    renderActive();
   }
 
   // drag & drop
@@ -943,6 +1063,84 @@
     state.customOrder = order; state.activeMode = 'custom'; els.modeCustom.style.display = ''; renderActive();
   }
 
+  // ---- Manual single-stop add (extends the matrices without rebuilding everything) ----
+  async function matrixRow(service, origin, dests) {
+    const dist = [], time = [];
+    for (let i = 0; i < dests.length; i += 25) {
+      const res = await callMatrix(service, [origin], dests.slice(i, i + 25));
+      res.rows[0].elements.forEach(el => { dist.push(el.status === 'OK' ? el.distance.value : Infinity); time.push(el.status === 'OK' ? el.duration.value : Infinity); });
+    }
+    return { dist, time };
+  }
+  async function matrixCol(service, origins, dest) {
+    const dist = [], time = [];
+    for (let i = 0; i < origins.length; i += 25) {
+      const res = await callMatrix(service, origins.slice(i, i + 25), [dest]);
+      res.rows.forEach(r => { const el = r.elements[0]; dist.push(el.status === 'OK' ? el.distance.value : Infinity); time.push(el.status === 'OK' ? el.duration.value : Infinity); });
+    }
+    return { dist, time };
+  }
+  function rebuildMatrix(oldM, fromNew, toNew) {
+    const N = oldM.length, M = N + 1; // insert new stop at index N-1 (before end), end shifts to M-1
+    const nm = Array.from({ length: M }, () => new Array(M).fill(0));
+    const mapOld = idx => idx <= N - 2 ? idx : (idx === M - 1 ? N - 1 : -1); // -1 == the new node
+    for (let i = 0; i < M; i++) for (let j = 0; j < M; j++) {
+      if (i === j) { nm[i][j] = 0; continue; }
+      const oi = mapOld(i), oj = mapOld(j);
+      if (oi === -1) nm[i][j] = oj === -1 ? 0 : fromNew[oj];
+      else if (oj === -1) nm[i][j] = toNew[oi];
+      else nm[i][j] = oldM[oi][oj];
+    }
+    return nm;
+  }
+  function parseOneOrder(line) {
+    const cols = line.split('\t');
+    if (cols.length === 1) return { date: '', customer: '', phone: '', address: line.trim(), products: [] };
+    const product = (cols[2] || '').trim();
+    return { date: (cols[0] || '').trim(), customer: (cols[1] || '').trim(), phone: (cols[5] || '').trim(), address: (cols[4] || '').trim() || line.trim(), products: product ? [{ name: product, qty: (cols[3] || '').trim() }] : [] };
+  }
+  async function addManualStop() {
+    if (!state) return;
+    const raw = els.addAddr.value.trim();
+    if (!raw) { setStatus('Eklemek için bir adres yaz.', 'bad'); return; }
+    const info = parseOneOrder(raw);
+    if (!hasLetters(info.address)) { setStatus('Geçerli bir adres yaz (harf içermeli).', 'bad'); return; }
+    els.addStopBtn.disabled = true; setProgress(true, 30, 'Adres ekleniyor...');
+    try {
+      const geocoder = new google.maps.Geocoder();
+      const newNode = await geocodeOne(geocoder, info.address);
+      const service = new google.maps.DistanceMatrixService();
+      const oldNodes = [state.startNode, ...state.stopNodes, state.endNode];
+      const oldLL = oldNodes.map(n => new google.maps.LatLng(n.lat, n.lng));
+      const newLL = new google.maps.LatLng(newNode.lat, newNode.lng);
+      setProgress(true, 60, 'Mesafeler hesaplanıyor...');
+      const fromNew = await matrixRow(service, newLL, oldLL);
+      const toNew = await matrixCol(service, oldLL, newLL);
+      state.distMatrix = rebuildMatrix(state.distMatrix, fromNew.dist, toNew.dist);
+      state.timeMatrix = rebuildMatrix(state.timeMatrix, fromNew.time, toNew.time);
+      state.stopNodes.push(newNode); state.stopInfo.push(info);
+      const newIdx = state.stopNodes.length - 1;
+      state.orders.distance = cheapestInsert(state.orders.distance, newIdx, state.distMatrix);
+      state.orders.time = cheapestInsert(state.orders.time, newIdx, state.timeMatrix);
+      if (state.customOrder) state.customOrder = cheapestInsert(state.customOrder, newIdx, state.distMatrix);
+      state.dirCache = {};
+      els.addAddr.value = '';
+      await renderActive();
+      setStatus('✓ Durak eklendi: ' + (newNode.formatted || info.address), 'ok');
+    } catch (err) {
+      console.error(err);
+      setStatus('Adres eklenemedi: ' + geoReason(err && err.status), 'bad');
+    } finally { els.addStopBtn.disabled = false; setTimeout(() => setProgress(false), 500); }
+  }
+  els.addStopBtn.addEventListener('click', addManualStop);
+  els.addAddr.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addManualStop(); } });
+
+  els.splitBtns = [els.split1, els.split2, els.split3];
+  function highlightSplit() { els.splitBtns.forEach((b, i) => b.classList.toggle('active', selectedSplit === i + 1)); }
+  els.split1.addEventListener('click', () => { selectedSplit = 1; highlightSplit(); if (state) renderActive(); });
+  els.split2.addEventListener('click', () => { selectedSplit = 2; highlightSplit(); if (state) renderActive(); });
+  els.split3.addEventListener('click', () => { selectedSplit = 3; highlightSplit(); if (state) renderActive(); });
+
   els.modeDistance.addEventListener('click', () => { selectedMode = 'distance'; if (state) { state.activeMode = 'distance'; renderActive(); } else highlightMode(); });
   els.modeTime.addEventListener('click', () => { selectedMode = 'time'; if (state) { state.activeMode = 'time'; renderActive(); } else highlightMode(); });
   els.modeCustom.addEventListener('click', () => { if (state && state.customOrder) { state.activeMode = 'custom'; renderActive(); } });
@@ -951,35 +1149,41 @@
   function csvCell(v) { v = String(v == null ? '' : v); if (/[";\n]/.test(v)) v = '"' + v.replace(/"/g, '""') + '"'; return v; }
   function exportToExcel() {
     if (!state) return;
-    const order = getActiveOrder();
-    const dr = state.dirCache[order.join(',')]; const legs = dr ? dr.legs : null;
+    const baseOrder = getActiveOrder();
+    const splitN = Math.min(selectedSplit, Math.max(1, baseOrder.length));
+    const groups = partitionOrder(baseOrder, splitN);
     const modeName = state.activeMode === 'time' ? 'En kısa süre' : state.activeMode === 'custom' ? 'Özel sıra' : 'En kısa mesafe';
     const rows = [];
-    rows.push(['Sevkiyat Rotası — ' + modeName]);
-    // Column order: A=Tarih, B=Müşteri, C=Ürünler, D=Adet, E=Adres, F=Telefon, G=Sıra, H=km, I=Süre
-    rows.push(['Tarih', 'Müşteri', 'Ürünler', 'Adet', 'Adres', 'Telefon', 'Sıra', 'Bu bacak (km)', 'Süre']);
-    rows.push(['', 'Başlangıç', '', '', state.startText, '', 'A', '', '']);
+    rows.push(['Sevkiyat Rotası — ' + modeName + (splitN > 1 ? ' · ' + splitN + ' parça' : '')]);
+    // Column order: A=Tarih, B=Müşteri, C=Ürünler, D=Adet, E=Adres, F=Telefon, G=Sıra, H=Bu durağa mesafe (km), I=Süre, J=Parça
+    rows.push(['Tarih', 'Müşteri', 'Ürünler', 'Adet', 'Adres', 'Telefon', 'Sıra', 'Bu durağa mesafe (km)', 'Süre', 'Parça']);
     let totalMeters = 0, totalSec = 0;
-    order.forEach((stopIdx, pos) => {
-      const node = state.stopNodes[stopIdx]; const leg = legs ? legs[pos] : null;
-      const info = state.stopInfo ? state.stopInfo[stopIdx] : null;
-      if (leg) { totalMeters += leg.distance.value; totalSec += leg.duration.value; }
-      const productsStr = info && info.products.length ? info.products.map(p => p.name + (p.qty ? ' x' + p.qty : '')).join(' | ') : '';
-      const qtyStr = info && info.products.length ? info.products.reduce((s, p) => s + (parseInt(p.qty, 10) || 0), 0) : '';
-      rows.push([info ? info.date : '', info ? info.customer : '', productsStr, qtyStr, node.formatted || node.original, info ? info.phone : '', pos + 1, leg ? (leg.distance.value / 1000).toFixed(1) : '', leg ? fmtHours(leg.duration.value) : '']);
+    groups.forEach((gStops, gi) => {
+      const partNo = splitN > 1 ? gi + 1 : '';
+      const dr = state.dirCache['p' + gi + ':' + gStops.join(',')]; const legs = dr ? dr.legs : null;
+      rows.push(['', 'Başlangıç', '', '', state.startText, '', 'A', '', '', partNo]);
+      gStops.forEach((stopIdx, pos) => {
+        const node = state.stopNodes[stopIdx]; const leg = legs ? legs[pos] : null;
+        const info = state.stopInfo ? state.stopInfo[stopIdx] : null;
+        if (leg) { totalMeters += leg.distance.value; totalSec += leg.duration.value; }
+        const productsStr = info && info.products.length ? info.products.map(p => p.name + (p.qty ? ' x' + p.qty : '')).join(' | ') : '';
+        const qtyStr = info && info.products.length ? info.products.reduce((s, p) => s + (parseInt(p.qty, 10) || 0), 0) : '';
+        rows.push([info ? info.date : '', info ? info.customer : '', productsStr, qtyStr, node.formatted || node.original, info ? info.phone : '', pos + 1, leg ? (leg.distance.value / 1000).toFixed(1) : '', leg ? fmtHours(leg.duration.value) : '', partNo]);
+      });
+      const endLeg = legs ? legs[legs.length - 1] : null;
+      if (endLeg) { totalMeters += endLeg.distance.value; totalSec += endLeg.duration.value; }
+      rows.push(['', 'Bitiş', '', '', state.endText, '', 'B', endLeg ? (endLeg.distance.value / 1000).toFixed(1) : '', endLeg ? fmtHours(endLeg.duration.value) : '', partNo]);
+      if (splitN > 1) rows.push([]);
     });
-    const endLeg = legs ? legs[legs.length - 1] : null;
-    if (endLeg) { totalMeters += endLeg.distance.value; totalSec += endLeg.duration.value; }
-    rows.push(['', 'Bitiş', '', '', state.endText, '', 'B', endLeg ? (endLeg.distance.value / 1000).toFixed(1) : '', endLeg ? fmtHours(endLeg.duration.value) : '']);
     const totalKm = totalMeters / 1000;
     const stopMinutes = parseFloat(els.stopMinutes.value) || 0;
-    const totalTimeSec = totalSec + order.length * stopMinutes * 60;
+    const totalTimeSec = totalSec + baseOrder.length * stopMinutes * 60;
     const costPerKm = parseFloat(els.costPerKm.value) || 0;
     rows.push([]);
-    rows.push(['', '', 'Toplam mesafe', totalKm.toFixed(1) + ' km', '']);
-    rows.push(['', '', 'Toplam süre (durak dahil)', fmtHours(totalTimeSec), '']);
-    rows.push(['', '', 'Km başına ücret', '€' + costPerKm.toFixed(2), '']);
-    rows.push(['', '', 'Toplam ücret', '€' + (totalKm * costPerKm).toFixed(2), '']);
+    rows.push(['Toplam mesafe', totalKm.toFixed(1) + ' km']);
+    rows.push(['Toplam süre (durak dahil)', fmtHours(totalTimeSec)]);
+    rows.push(['Km başına ücret', '€' + costPerKm.toFixed(2)]);
+    rows.push(['Toplam ücret', '€' + (totalKm * costPerKm).toFixed(2)]);
     const csv = '﻿' + rows.map(r => r.map(csvCell).join(';')).join('\r\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -1053,6 +1257,7 @@
       els.kpis.style.display = 'grid';
       await renderActive();
       els.exportBtn.disabled = false;
+      els.addStopBox.style.display = 'block';
       renderFailures(failures);
       const warn = failures.length ? ' ⚠ ' + failures.length + ' adres atlandı — aşağıdaki "Bulunamayan Adresler" bölümüne bak.' : '';
       setStatus('✓ Rota hesaplandı — ' + stopNodes.length + ' durak (' + (selectedMode === 'time' ? 'en kısa süre' : 'en kısa mesafe') + ').' + warn, failures.length ? 'warn' : 'ok');
@@ -1063,6 +1268,7 @@
 
   updateStopCountHint();
   highlightMode();
+  highlightSplit();
 })();
 </script>
 
