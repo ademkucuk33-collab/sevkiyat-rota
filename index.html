@@ -133,6 +133,8 @@
   details ol, details p { font-size: 12.5px; color: var(--muted); line-height: 1.6; }
   details ol { padding-left: 18px; margin: 8px 0; }
   .hint { font-size: 11.5px; color: var(--muted-soft); margin: 4px 0 0; line-height: 1.5; }
+  .btn-fix { display: inline-flex; align-items: center; gap: 6px; margin-top: 9px; padding: 7px 12px; border-radius: 8px; background: var(--panel-soft); border: 1px solid var(--border); color: var(--accent); font-size: 12px; font-weight: 700; }
+  .btn-fix:hover { border-color: var(--accent); box-shadow: 0 0 10px -3px var(--accent); }
 
   .field-euro-wrap { position: relative; }
   .field-euro-wrap input { padding-left: 28px; }
@@ -348,6 +350,11 @@
         <p>Bir müşteri birden fazla ürün aldıysa: ilk satıra tüm bilgileri yaz, ek ürünleri alt satırlara ekle ve o satırlarda <b>Adres sütununu boş</b> bırak — aynı durağa eklenir. Sadece düz adres listesi de yapıştırabilirsin.</p>
       </details>
       <p class="hint" id="stopCountHint">0 durak.</p>
+      <button class="btn-fix" id="fixBtn" type="button" title="Tarihle başlamayan (alta kaymış) satırları bir üstteki siparişe TAB ile birleştirir">
+        <svg class="icon" viewBox="0 0 24 24" style="width:15px;height:15px"><path d="M4 12h6M4 6h10M4 18h8"/><path d="M15 15l3 3 4-5"/></svg>
+        Satırları Otomatik Düzelt
+      </button>
+      <p class="hint">İpucu: Bu alanda <b>Tab</b> tuşu sütun ayıracı (tab) ekler — böylece bölünmüş satırları elle de hizalayabilirsin.</p>
 
       <div class="seg-wrap">
         <div class="seg-caption">
@@ -482,6 +489,7 @@
     roundTrip: document.getElementById('roundTrip'),
     stops: document.getElementById('stops'),
     stopCountHint: document.getElementById('stopCountHint'),
+    fixBtn: document.getElementById('fixBtn'),
     formStopCount: document.getElementById('formStopCount'),
     formWrap: document.getElementById('formWrap'),
     formToggle: document.getElementById('formToggle'),
@@ -594,6 +602,24 @@
     els.formStopCount.textContent = n + ' durak';
   }
   els.stops.addEventListener('input', updateStopCountHint);
+  // Tab key inserts a real tab (column separator) instead of moving focus
+  els.stops.addEventListener('keydown', e => {
+    if (e.key !== 'Tab' || e.shiftKey) return;
+    e.preventDefault();
+    const s = els.stops.selectionStart, en = els.stops.selectionEnd;
+    els.stops.value = els.stops.value.slice(0, s) + '\t' + els.stops.value.slice(en);
+    els.stops.selectionStart = els.stops.selectionEnd = s + 1;
+    updateStopCountHint();
+  });
+  // Auto-fix: merge wrapped (non-date) continuation lines into the previous row
+  els.fixBtn.addEventListener('click', () => {
+    const beforeCount = els.stops.value.split('\n').filter(l => l.trim()).length;
+    const merged = normalizeLines(els.stops.value);
+    els.stops.value = merged.join('\n');
+    updateStopCountHint();
+    const fixed = beforeCount - merged.length;
+    setStatus(fixed > 0 ? ('✓ ' + fixed + ' bölünmüş satır birleştirildi.') : 'Düzeltilecek bölünmüş satır yok — her sipariş zaten tek satırda.', fixed > 0 ? 'ok' : 'warn');
+  });
 
   function setStatus(msg, kind) { els.status.textContent = msg; els.status.className = kind ? ('status-' + kind) : ''; }
   function setProgress(v, pct, label) { els.progressWrap.style.display = v ? 'block' : 'none'; if (pct != null) els.progressBar.style.width = pct + '%'; if (label != null) els.progressLabel.textContent = label; }
@@ -632,8 +658,20 @@
   }
   // Parse pasted order rows (tab-separated: Tarih, Müşteri, Ürün, Adet, Adres, Telefon).
   // Rows with an empty Address column are treated as additional products for the previous stop.
+  // A new order row always starts with a date (e.g. 04.07.2026). Lines that don't
+  // start with a date are wrapped continuations of the previous row → re-join them with a TAB.
+  const DATE_START = /^\s*\d{1,2}[.\/-]\d{1,2}[.\/-]\d{2,4}/;
+  function normalizeLines(raw) {
+    const out = [];
+    raw.split('\n').forEach(line => {
+      if (!line.trim()) return;
+      if (out.length === 0 || DATE_START.test(line)) out.push(line.replace(/\s+$/, ''));
+      else out[out.length - 1] = out[out.length - 1].replace(/[ \t]+$/, '') + '\t' + line.trim();
+    });
+    return out;
+  }
   function parseOrders() {
-    const lines = els.stops.value.split('\n').filter(l => l.trim());
+    const lines = normalizeLines(els.stops.value);
     const orders = [];
     for (const line of lines) {
       const cols = line.split('\t');
