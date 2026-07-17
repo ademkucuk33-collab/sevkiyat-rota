@@ -103,6 +103,8 @@
     transition: border-color .15s, background .15s;
   }
   input:focus, textarea:focus { outline: none; border-color: var(--accent); background: #fff; }
+  select { width: 100%; padding: 9px 11px; border: 1.5px solid var(--border); border-radius: 9px; font-size: 13.5px; font-family: inherit; background: var(--panel-soft); color: var(--text); cursor: pointer; }
+  select:focus { outline: none; border-color: var(--accent); }
   textarea { resize: both; min-height: 150px; line-height: 1.5; }
   #stops { white-space: pre; overflow-x: auto; min-width: 100%; }
   .checkbox-row { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
@@ -307,7 +309,7 @@
   </div>
   <div>
     <h1>Sevkiyat Rota Planlayıcı</h1>
-    <p>Adresleri gir, optimum rotayı ve teslimat ücretini hesapla · <b style="color:var(--accent)">motor: OpenRouteService v5</b></p>
+    <p>Adresleri gir, optimum rotayı ve teslimat ücretini hesapla · <b style="color:var(--accent)">v6 · ORS / Mapbox / HERE</b></p>
   </div>
   <button class="theme-toggle" id="themeToggle" title="Gece / gündüz modu" aria-label="Tema değiştir">
     <svg class="icon sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
@@ -479,23 +481,29 @@
       <div class="panel">
         <div class="panel-head">
           <span class="badge"><svg class="icon" viewBox="0 0 24 24"><circle cx="7.5" cy="12" r="4.2"/><path d="M11.3 12H21M17 12v3.2M20 12v3.2"/></svg></span>
-          <h2>OpenRouteService API Anahtarı</h2>
+          <h2>Rota Sağlayıcı &amp; API Anahtarı</h2>
         </div>
-        <label for="apiKey">API Key (ücretsiz)</label>
+        <label for="provider">Sağlayıcı</label>
+        <select id="provider">
+          <option value="ors">OpenRouteService (ücretsiz)</option>
+          <option value="mapbox">Mapbox</option>
+          <option value="here">HERE (ilk programının motoru)</option>
+        </select>
+        <label for="apiKey" id="apiKeyLabel">API Key</label>
         <input type="password" id="apiKey" placeholder="eyJ... (ORS anahtarı)">
         <div class="checkbox-row">
           <input type="checkbox" id="showKey">
           <label for="showKey">Anahtarı göster</label>
         </div>
+        <p class="hint" id="providerHint">Aynı adresleri farklı sağlayıcılarla deneyip en iyisini seçebilirsin. Her sağlayıcının anahtarı ayrı saklanır. HERE genelde en kısa km'yi verir.</p>
         <details>
           <summary>Ücretsiz anahtar nereden alınır?</summary>
           <ol>
-            <li><b>openrouteservice.org/dev</b> adresine ücretsiz kaydol.</li>
-            <li>"Request a token" → <b>Standard</b> (ücretsiz) plan → anahtarı kopyala.</li>
-            <li>Anahtarı buraya yapıştır. Tamamen ücretsiz — kredi kartı gerekmez.</li>
-            <li>Günlük ~2000 rota / 500 matris / 1000 adres ücretsiz kotası var.</li>
+            <li><b>OpenRouteService:</b> openrouteservice.org/dev → Standard (ücretsiz) token.</li>
+            <li><b>Mapbox:</b> account.mapbox.com → "Default public token" (pk. ile başlar, kart gerekmez).</li>
+            <li><b>HERE:</b> platform.here.com → ücretsiz plan → REST API key.</li>
           </ol>
-          <p>Harita da ücretsiz OpenStreetMap ile çalışır — artık Google gerekmiyor. Anahtar yalnızca tarayıcında saklanır (localStorage).</p>
+          <p>Harita ücretsiz OpenStreetMap ile çalışır. Anahtarlar yalnızca tarayıcında saklanır (localStorage).</p>
         </details>
       </div>
     </div>
@@ -507,6 +515,9 @@
   const els = {
     themeToggle: document.getElementById('themeToggle'),
     apiKey: document.getElementById('apiKey'),
+    provider: document.getElementById('provider'),
+    apiKeyLabel: document.getElementById('apiKeyLabel'),
+    providerHint: document.getElementById('providerHint'),
     showKey: document.getElementById('showKey'),
     costPerKm: document.getElementById('costPerKm'),
     stopMinutes: document.getElementById('stopMinutes'),
@@ -551,7 +562,13 @@
   };
 
   const STORAGE_KEY = 'sevkiyat-rota-settings-v2';
-  const FIELDS_TO_PERSIST = ['apiKey', 'costPerKm', 'stopMinutes', 'startAddr', 'endAddr', 'roundTrip'];
+  const FIELDS_TO_PERSIST = ['costPerKm', 'stopMinutes', 'startAddr', 'endAddr', 'roundTrip'];
+
+  // Per-provider keys + selected provider
+  const PROVKEY = 'sevkiyat-provider-keys-v1';
+  let providerKeys = { ors: '', mapbox: '', here: '' };
+  try { providerKeys = Object.assign(providerKeys, JSON.parse(localStorage.getItem(PROVKEY) || '{}')); } catch (e) {}
+  let selectedProvider = localStorage.getItem('sevkiyat-provider') || 'ors';
 
   // ---- OpenRouteService (free, no Google) ----
   const ORS_BASE = 'https://api.openrouteservice.org';
@@ -614,16 +631,106 @@
     return data.routes[0].steps.filter(s => s.type === 'job').map(s => s.id - 1); // stop indices, optimal order
   }
 
+  // ---- Mapbox provider ----
+  function provErr(res, name) { const e = new Error(name + ' ' + res.status); e.status = res.status === 401 || res.status === 403 ? 'REQUEST_DENIED' : res.status === 429 ? 'OVER_QUERY_LIMIT' : res.status === 404 ? 'ZERO_RESULTS' : 'UNKNOWN_ERROR'; return e; }
+  async function mbGeocode(key, address) {
+    const url = 'https://api.mapbox.com/geocoding/v5/mapbox.places/' + encodeURIComponent(address) + '.json?access_token=' + key + '&country=de&limit=1&language=de';
+    const res = await orsFetch(url); if (!res.ok) throw provErr(res, 'Mapbox');
+    const d = await res.json(); const f = d.features && d.features[0];
+    if (!f) { const e = new Error('no results'); e.status = 'ZERO_RESULTS'; throw e; }
+    return { lat: f.center[1], lng: f.center[0], formatted: f.place_name, confidence: f.relevance, original: address };
+  }
+  async function mbMatrix(key, nodes, onProgress) {
+    const N = nodes.length;
+    const dist = Array.from({ length: N }, () => new Array(N).fill(Infinity));
+    const time = Array.from({ length: N }, () => new Array(N).fill(Infinity));
+    const B = 12, blocks = []; for (let i = 0; i < N; i += B) blocks.push([i, Math.min(i + B, N)]);
+    let done = 0; const total = blocks.length * blocks.length;
+    for (const [as, ae] of blocks) for (const [bs, be] of blocks) {
+      const src = nodes.slice(as, ae), dst = nodes.slice(bs, be), all = [...src, ...dst];
+      const coords = all.map(n => n.lng + ',' + n.lat).join(';');
+      const sources = src.map((_, i) => i).join(';'), destinations = dst.map((_, i) => src.length + i).join(';');
+      const url = 'https://api.mapbox.com/directions-matrix/v1/mapbox/driving/' + coords + '?annotations=distance,duration&sources=' + sources + '&destinations=' + destinations + '&access_token=' + key;
+      const res = await orsFetch(url); if (!res.ok) throw new Error('Mapbox matris hatası (' + res.status + ').');
+      const d = await res.json();
+      for (let i = 0; i < src.length; i++) for (let j = 0; j < dst.length; j++) {
+        const dd = d.distances[i][j], tt = d.durations[i][j];
+        dist[as + i][bs + j] = dd == null ? Infinity : dd; time[as + i][bs + j] = tt == null ? Infinity : tt;
+      }
+      done++; onProgress(done, total);
+    }
+    return { dist, time };
+  }
+  async function mbGeometry(key, nodeSeq) {
+    const coords = nodeSeq.map(n => [n.lng, n.lat]); const CH = 25, lines = [];
+    for (let s = 0; s < coords.length - 1; s += CH - 1) {
+      const chunk = coords.slice(s, Math.min(s + CH, coords.length)); if (chunk.length < 2) break;
+      const cs = chunk.map(c => c[0] + ',' + c[1]).join(';');
+      const res = await orsFetch('https://api.mapbox.com/directions/v5/mapbox/driving/' + cs + '?geometries=geojson&overview=full&access_token=' + key);
+      if (!res.ok) throw new Error('Mapbox çizim hatası (' + res.status + ').');
+      const d = await res.json(); if (!d.routes || !d.routes[0]) throw new Error('Mapbox rota bulamadı.');
+      lines.push(d.routes[0].geometry.coordinates.map(c => [c[1], c[0]]));
+    }
+    return lines;
+  }
+
+  // ---- HERE provider ----
+  function decodeFlex(encoded) {
+    const A = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_'; let i = 0;
+    function u() { let r = 0, sh = 0, b; do { b = A.indexOf(encoded[i++]); r += (b & 0x1f) * Math.pow(2, sh); sh += 5; } while (b & 0x20); return r; }
+    function s() { const v = u(); const neg = (v % 2) === 1; const m = neg ? (v + 1) / 2 : v / 2; return neg ? -m : m; }
+    u(); const header = u(); const precision = header & 15, thirdDim = (header >> 4) & 7, factor = Math.pow(10, precision);
+    const pts = []; let lat = 0, lng = 0;
+    while (i < encoded.length) { lat += s(); lng += s(); if (thirdDim) s(); pts.push([lat / factor, lng / factor]); }
+    return pts;
+  }
+  async function hereGeocode(key, address) {
+    const url = 'https://geocode.search.hereapi.com/v1/geocode?q=' + encodeURIComponent(address) + '&apiKey=' + key + '&in=countryCode:DEU&limit=1';
+    const res = await orsFetch(url); if (!res.ok) throw provErr(res, 'HERE');
+    const d = await res.json(); const it = d.items && d.items[0];
+    if (!it) { const e = new Error('no results'); e.status = 'ZERO_RESULTS'; throw e; }
+    return { lat: it.position.lat, lng: it.position.lng, formatted: it.title, confidence: it.scoring ? it.scoring.queryScore : 1, original: address };
+  }
+  async function hereMatrix(key, nodes, onProgress) {
+    onProgress(0, 1);
+    const origins = nodes.map(n => ({ lat: n.lat, lng: n.lng }));
+    const res = await orsFetch('https://matrix.router.hereapi.com/v8/matrix?apiKey=' + key + '&async=false', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ origins, regionDefinition: { type: 'world' }, matrixAttributes: ['distances', 'travelTimes'], transportMode: 'car' }) });
+    if (!res.ok) throw new Error('HERE matris hatası (' + res.status + ').');
+    const d = await res.json(); const m = d.matrix, ND = m.numDestinations, dist = [], time = [];
+    for (let i = 0; i < m.numOrigins; i++) { dist.push([]); time.push([]); for (let j = 0; j < ND; j++) { const idx = i * ND + j; const dd = m.distances ? m.distances[idx] : null, tt = m.travelTimes ? m.travelTimes[idx] : null; dist[i][j] = dd == null ? Infinity : dd; time[i][j] = tt == null ? Infinity : tt; } }
+    onProgress(1, 1); return { dist, time };
+  }
+  async function hereGeometry(key, nodeSeq) {
+    const CH = 15, lines = [];
+    for (let s = 0; s < nodeSeq.length - 1; s += CH - 1) {
+      const chunk = nodeSeq.slice(s, Math.min(s + CH, nodeSeq.length)); if (chunk.length < 2) break;
+      const o = chunk[0], dest = chunk[chunk.length - 1], vias = chunk.slice(1, -1);
+      let url = 'https://router.hereapi.com/v8/routes?transportMode=car&origin=' + o.lat + ',' + o.lng + '&destination=' + dest.lat + ',' + dest.lng + '&return=polyline&apiKey=' + key;
+      vias.forEach(v => { url += '&via=' + v.lat + ',' + v.lng; });
+      const res = await orsFetch(url); if (!res.ok) throw new Error('HERE çizim hatası (' + res.status + ').');
+      const d = await res.json(); if (!d.routes || !d.routes[0]) throw new Error('HERE rota bulamadı.');
+      d.routes[0].sections.forEach(sec => lines.push(decodeFlex(sec.polyline)));
+    }
+    return lines;
+  }
+
+  // ---- Provider registry ----
+  const PROVIDERS = {
+    ors: { name: 'OpenRouteService', keyHint: 'eyJ... (ORS anahtarı)', geocode: orsGeocode, matrix: buildMatrices, geometry: fetchGeometry, optimize: orsOptimize, hasOptimizer: true },
+    mapbox: { name: 'Mapbox', keyHint: 'pk.ey... (Mapbox token)', geocode: mbGeocode, matrix: mbMatrix, geometry: mbGeometry, optimize: null, hasOptimizer: false },
+    here: { name: 'HERE', keyHint: 'HERE REST API key', geocode: hereGeocode, matrix: hereMatrix, geometry: hereGeometry, optimize: null, hasOptimizer: false },
+  };
+
   // Geocode cache — repeated addresses (same customers each week) are geocoded once, then reused for free.
   const GEO_CACHE_KEY = 'sevkiyat-geocache-v2';
   let geoCache = {};
   try { geoCache = JSON.parse(localStorage.getItem(GEO_CACHE_KEY) || '{}'); } catch (e) { geoCache = {}; }
-  function geoKey(a) { return (a || '').trim().toLowerCase().replace(/\s+/g, ' '); }
-  async function geocodeCached(key, address) {
-    const k = geoKey(address);
+  function geoKey(prov, a) { return prov + '|' + (a || '').trim().toLowerCase().replace(/\s+/g, ' '); }
+  async function geocodeCached(prov, key, address) {
+    const k = geoKey(prov, address);
     const hit = geoCache[k];
     if (hit) return { lat: hit.lat, lng: hit.lng, formatted: hit.formatted, confidence: hit.confidence, original: address };
-    const node = await orsGeocode(key, address);
+    const node = await PROVIDERS[prov].geocode(key, address);
     geoCache[k] = { lat: node.lat, lng: node.lng, formatted: node.formatted, confidence: node.confidence };
     try { localStorage.setItem(GEO_CACHE_KEY, JSON.stringify(geoCache)); } catch (e) {}
     return node;
@@ -648,6 +755,20 @@
   function toggleEndAddr() { els.endAddrWrap.style.display = els.roundTrip.checked ? 'none' : 'block'; }
   els.roundTrip.addEventListener('change', toggleEndAddr);
   els.showKey.addEventListener('change', () => { els.apiKey.type = els.showKey.checked ? 'text' : 'password'; });
+
+  // Provider selector: each provider keeps its own key.
+  function applyProviderUI() {
+    els.provider.value = selectedProvider;
+    els.apiKey.value = providerKeys[selectedProvider] || '';
+    els.apiKey.placeholder = PROVIDERS[selectedProvider].keyHint;
+    els.apiKeyLabel.textContent = PROVIDERS[selectedProvider].name + ' API Key';
+  }
+  function saveProviderKey() {
+    providerKeys[selectedProvider] = els.apiKey.value.trim();
+    try { localStorage.setItem(PROVKEY, JSON.stringify(providerKeys)); localStorage.setItem('sevkiyat-provider', selectedProvider); } catch (e) {}
+  }
+  els.provider.addEventListener('change', () => { saveProviderKey(); selectedProvider = els.provider.value; applyProviderUI(); });
+  els.apiKey.addEventListener('change', saveProviderKey);
   els.formToggle.addEventListener('click', () => {
     const collapsed = els.formWrap.classList.toggle('collapsed');
     els.formToggle.setAttribute('aria-expanded', String(!collapsed));
@@ -686,6 +807,7 @@
   });
 
   loadSettings();
+  applyProviderUI();
   FIELDS_TO_PERSIST.forEach(key => { const el = els[key]; if (el) el.addEventListener('change', saveSettings); });
 
   function updateStopCountHint() {
@@ -978,7 +1100,7 @@
       setProgress(true, 84, 'Rota çiziliyor...');
       const dkey = order.join(',');
       let geoLines = state.dirCache[dkey];
-      if (!geoLines) { geoLines = await fetchGeometry(state.orsKey, nodeSeq); state.dirCache[dkey] = geoLines; }
+      if (!geoLines) { geoLines = await PROVIDERS[state.provider].geometry(state.key, nodeSeq); state.dirCache[dkey] = geoLines; }
       drawRoute(geoLines, nodeSeq);
       const totalKm = totalMeters / 1000; const stopMinutes = parseFloat(els.stopMinutes.value) || 0;
       const totalTimeSeconds = totalSec + order.length * stopMinutes * 60;
@@ -1098,22 +1220,18 @@
     if (!hasLetters(info.address)) { setStatus('Geçerli bir adres yaz (harf içermeli).', 'bad'); return; }
     els.addStopBtn.disabled = true; setProgress(true, 30, 'Adres ekleniyor...');
     try {
-      const newNode = await geocodeCached(state.orsKey, info.address);
-      const oldNodes = [state.startNode, ...state.stopNodes, state.endNode];
-      setProgress(true, 60, 'Mesafeler hesaplanıyor...');
-      const locs = [...oldNodes.map(n => [n.lng, n.lat]), [newNode.lng, newNode.lat]];
-      const newIdxL = locs.length - 1, n = oldNodes.length;
-      const r1 = await orsMatrix(state.orsKey, locs, [newIdxL], null); // new -> all
-      const r2 = await orsMatrix(state.orsKey, locs, null, [newIdxL]); // all -> new
-      const fromNew = { dist: r1.distances[0].slice(0, n).map(v => v == null ? Infinity : v), time: r1.durations[0].slice(0, n).map(v => v == null ? Infinity : v) };
-      const toNew = { dist: r2.distances.slice(0, n).map(row => row[0] == null ? Infinity : row[0]), time: r2.durations.slice(0, n).map(row => row[0] == null ? Infinity : row[0]) };
-      state.distMatrix = rebuildMatrix(state.distMatrix, fromNew.dist, toNew.dist);
-      state.timeMatrix = rebuildMatrix(state.timeMatrix, fromNew.time, toNew.time);
+      const P = PROVIDERS[state.provider];
+      const newNode = await geocodeCached(state.provider, state.key, info.address);
       state.stopNodes.push(newNode); state.stopInfo.push(info);
-      const newIdx = state.stopNodes.length - 1;
-      state.orders.distance = cheapestInsert(state.orders.distance, newIdx, state.distMatrix);
-      state.orders.time = cheapestInsert(state.orders.time, newIdx, state.timeMatrix);
-      if (state.customOrder) state.customOrder = cheapestInsert(state.customOrder, newIdx, state.distMatrix);
+      setProgress(true, 60, 'Mesafeler yeniden hesaplanıyor...');
+      const nodes = [state.startNode, ...state.stopNodes, state.endNode];
+      const { dist, time } = await P.matrix(state.key, nodes, () => {});
+      state.distMatrix = dist; state.timeMatrix = time;
+      let vroom = null;
+      if (P.hasOptimizer) { try { vroom = await P.optimize(state.key, state.startNode, state.endNode, state.stopNodes); } catch (e) {} }
+      state.orders.distance = bestOrder(dist, vroom);
+      state.orders.time = vroom ? refine(vroom.slice(), time) : bestOrder(time, null);
+      state.customOrder = null; els.modeCustom.style.display = 'none';
       state.dirCache = {};
       els.addAddr.value = '';
       await renderActive();
@@ -1177,6 +1295,7 @@
   // ---- Main ----
   async function handleCalculate() {
     const apiKey = els.apiKey.value.trim();
+    const prov = selectedProvider, P = PROVIDERS[prov];
     const startAddr = els.startAddr.value.trim();
     const roundTrip = els.roundTrip.checked;
     const endAddr = roundTrip ? startAddr : els.endAddr.value.trim();
@@ -1189,14 +1308,14 @@
       else failures.push({ order: o, reason: o.address ? 'Adres sütununa telefon/sayı girilmiş görünüyor (harf içermiyor). Doğru adresi yaz.' : 'Adres sütunu boş.' });
     });
 
-    if (!apiKey) { setStatus('Önce API anahtarını gir (alttaki "Ayarlar" bölümü).', 'bad'); els.formWrap.classList.remove('collapsed'); return; }
+    if (!apiKey) { setStatus('Önce ' + P.name + ' API anahtarını gir (alttaki "Ayarlar" bölümü).', 'bad'); els.formWrap.classList.remove('collapsed'); return; }
     if (!startAddr) { setStatus('Başlangıç adresi gerekli.', 'bad'); return; }
     if (!endAddr) { setStatus('Bitiş adresi gerekli (ya da "Bitiş = Başlangıç").', 'bad'); return; }
     if (validOrders.length === 0) { renderFailures(failures); setStatus('Geçerli adres bulunamadı — aşağıdaki "Bulunamayan Adresler" bölümüne bak.', 'bad'); return; }
 
-    saveSettings();
+    saveSettings(); saveProviderKey();
     els.calcBtn.disabled = true; els.exportBtn.disabled = true; renderFailures([]);
-    setStatus('Harita hazırlanıyor...', null); setProgress(true, 0, 'Başlatılıyor...');
+    setStatus(P.name + ' ile hesaplanıyor...', null); setProgress(true, 0, 'Başlatılıyor...');
     try {
       ensureMap(); setTimeout(() => leafletMap && leafletMap.invalidateSize(), 100);
       const totalG = validOrders.length + 1 + (roundTrip ? 0 : 1);
@@ -1204,34 +1323,32 @@
       const tick = () => setProgress(true, Math.round((++doneG / totalG) * 35), 'Adresler konumlandırılıyor (' + doneG + '/' + totalG + ')...');
 
       let startNode, endNode;
-      try { startNode = await geocodeCached(apiKey, startAddr); tick(); } catch (e) { throw new Error('Başlangıç adresi bulunamadı: ' + startAddr); }
-      if (roundTrip) { endNode = startNode; } else { try { endNode = await geocodeCached(apiKey, endAddr); tick(); } catch (e) { throw new Error('Bitiş adresi bulunamadı: ' + endAddr); } }
+      try { startNode = await geocodeCached(prov, apiKey, startAddr); tick(); } catch (e) { throw new Error('Başlangıç adresi bulunamadı: ' + startAddr + (e && e.status === 'REQUEST_DENIED' ? ' (API anahtarı geçersiz?)' : '')); }
+      if (roundTrip) { endNode = startNode; } else { try { endNode = await geocodeCached(prov, apiKey, endAddr); tick(); } catch (e) { throw new Error('Bitiş adresi bulunamadı: ' + endAddr); } }
 
       // Fault-tolerant stop geocoding: a bad address is skipped (recorded), not fatal.
-      // Low concurrency to stay within ORS' free per-minute rate limit.
       const stopNodes = [], stopInfo = [];
       await mapWithConcurrency(validOrders, 3, async (o) => {
-        try { const node = await geocodeCached(apiKey, o.address); stopNodes.push(node); stopInfo.push(o); }
+        try { const node = await geocodeCached(prov, apiKey, o.address); stopNodes.push(node); stopInfo.push(o); }
         catch (e) { failures.push({ order: o, reason: geoReason(e && e.status) }); }
         tick();
       });
-      if (stopNodes.length === 0) throw new Error('Hiçbir müşteri adresi bulunamadı. Adresleri kontrol et.');
+      if (stopNodes.length === 0) throw new Error('Hiçbir müşteri adresi bulunamadı. Adresleri / API anahtarını kontrol et.');
 
       const nodes = [startNode, ...stopNodes, endNode];
       setProgress(true, 40, 'Gerçek yol mesafeleri hesaplanıyor...');
-      const { dist, time } = await buildMatrices(apiKey, nodes, (done, total) => setProgress(true, 40 + Math.round((done / total) * 32), 'Mesafe matrisi (' + done + '/' + total + ')...'));
+      const { dist, time } = await P.matrix(apiKey, nodes, (done, total) => setProgress(true, 40 + Math.round((done / total) * 32), 'Mesafe matrisi (' + done + '/' + total + ')...'));
 
-      // Professional order via ORS optimization (VROOM); fall back to local solver if unavailable.
+      // Professional order via provider's optimizer (ORS/VROOM); else local solver (2-opt + or-opt).
       setProgress(true, 74, 'En verimli sıra hesaplanıyor...');
       let vroom = null;
-      try { vroom = await orsOptimize(apiKey, startNode, endNode, stopNodes); }
-      catch (e) { console.warn('ORS optimization kullanılamadı, yerel çözücüye geçildi:', e.message); }
+      if (P.hasOptimizer) { try { vroom = await P.optimize(apiKey, startNode, endNode, stopNodes); } catch (e) { console.warn('Optimizasyon kullanılamadı, yerel çözücüye geçildi:', e.message); } }
       setProgress(true, 80, 'Sıralama iyileştiriliyor...');
       const orderTime = vroom ? refine(vroom.slice(), time) : bestOrder(time, null);
       const orderDistance = bestOrder(dist, vroom);
 
       state = {
-        startNode, endNode, stopNodes, stopInfo, orsKey: apiKey,
+        startNode, endNode, stopNodes, stopInfo, key: apiKey, provider: prov,
         startText: startNode.formatted || startAddr, endText: endNode.formatted || endAddr,
         distMatrix: dist, timeMatrix: time,
         orders: { distance: orderDistance, time: orderTime },
@@ -1248,7 +1365,7 @@
       const lowConf = [startNode, ...stopNodes].filter(n => typeof n.confidence === 'number' && n.confidence < 0.4).length;
       let warn = failures.length ? ' ⚠ ' + failures.length + ' adres atlandı — "Bulunamayan Adresler" bölümüne bak.' : '';
       if (lowConf) warn += ' ⚠ ' + lowConf + ' adres şüpheli eşleşti — durak listesinde bulunan adresleri kontrol et.';
-      setStatus('✓ Rota hesaplandı — ' + stopNodes.length + ' durak (' + (selectedMode === 'time' ? 'en kısa süre' : 'en kısa mesafe') + ').' + warn, (failures.length || lowConf) ? 'warn' : 'ok');
+      setStatus('✓ ' + P.name + ' ile hesaplandı — ' + stopNodes.length + ' durak (' + (selectedMode === 'time' ? 'en kısa süre' : 'en kısa mesafe') + ').' + warn, (failures.length || lowConf) ? 'warn' : 'ok');
     } catch (err) { console.error(err); setStatus(err.message || 'Beklenmeyen bir hata oluştu.', 'bad'); }
     finally { els.calcBtn.disabled = false; setTimeout(() => setProgress(false), 800); }
   }
