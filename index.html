@@ -694,8 +694,10 @@
   async function hereMatrix(key, nodes, onProgress) {
     onProgress(0, 1);
     const origins = nodes.map(n => ({ lat: n.lat, lng: n.lng }));
-    const res = await orsFetch('https://matrix.router.hereapi.com/v8/matrix?apiKey=' + key + '&async=false', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ origins, regionDefinition: { type: 'world' }, matrixAttributes: ['distances', 'travelTimes'], transportMode: 'car' }) });
-    if (!res.ok) throw new Error('HERE matris hatası (' + res.status + ').');
+    // "world" region + a predefined profile ("Profile mode") allows up to 500x500 sync — plain
+    // transportMode ("Flexible mode") caps out at 15x100 and 400s on anything past ~15 stops.
+    const res = await orsFetch('https://matrix.router.hereapi.com/v8/matrix?apiKey=' + key + '&async=false', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ origins, regionDefinition: { type: 'world' }, matrixAttributes: ['distances', 'travelTimes'], profile: 'carFast' }) });
+    if (!res.ok) { const body = await res.text().catch(() => ''); throw new Error('HERE matris hatası (' + res.status + ').' + (body ? ' ' + body.slice(0, 200) : '')); }
     const d = await res.json(); const m = d.matrix, ND = m.numDestinations, dist = [], time = [];
     for (let i = 0; i < m.numOrigins; i++) { dist.push([]); time.push([]); for (let j = 0; j < ND; j++) { const idx = i * ND + j; const dd = m.distances ? m.distances[idx] : null, tt = m.travelTimes ? m.travelTimes[idx] : null; dist[i][j] = dd == null ? Infinity : dd; time[i][j] = tt == null ? Infinity : tt; } }
     onProgress(1, 1); return { dist, time };
