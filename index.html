@@ -407,7 +407,7 @@
   </div>
 
   <div class="settings-bar">
-    <div class="sb-group sb-provider">
+    <div class="sb-group sb-provider" id="sbProvider">
       <div class="sb-field"><label for="provider">Sağlayıcı</label><select id="provider"><option value="ors">OpenRouteService</option><option value="mapbox">Mapbox</option><option value="here">HERE</option></select></div>
       <div class="sb-field sb-key"><label for="apiKey" id="apiKeyLabel">API Key</label><input type="password" id="apiKey" placeholder="eyJ... (ORS anahtarı)"></div>
       <label class="sb-showkey"><input type="checkbox" id="showKey"> göster</label>
@@ -1449,7 +1449,7 @@
   if(!users||!Object.keys(users).length){ users={admin:{pass:'admin1234',role:'admin'}}; localStorage.setItem(UKEY,JSON.stringify(users)); }
   const save=()=>localStorage.setItem(UKEY,JSON.stringify(users));
   const cur=()=>{ const n=localStorage.getItem(SKEY); return n&&users[n]?{name:n,role:users[n].role}:null; };
-  function showApp(u){ $('loginOverlay').style.display='none'; $('authBar').style.display='flex'; $('whoami').textContent=u.name+(u.role==='admin'?' (admin)':''); $('adminBtn').style.display=u.role==='admin'?'':'none'; }
+  function showApp(u){ $('loginOverlay').style.display='none'; $('authBar').style.display='flex'; $('whoami').textContent=u.name+(u.role==='admin'?' (admin)':''); $('adminBtn').style.display=u.role==='admin'?'':'none'; const adm=u.role==='admin'; $('sbProvider').style.display=adm?'':'none'; const ph=$('providerHint'); if(ph) ph.style.display=adm?'':'none'; }
   function login(){ const n=$('loginUser').value.trim(), p=$('loginPass').value; if(users[n]&&users[n].pass===p){ localStorage.setItem(SKEY,n); $('loginErr').textContent=''; showApp({name:n,role:users[n].role}); } else $('loginErr').textContent='Kullanıcı adı veya şifre hatalı.'; }
   $('loginBtn').addEventListener('click',login);
   $('loginPass').addEventListener('keydown',e=>{ if(e.key==='Enter') login(); });
