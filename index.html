@@ -297,6 +297,20 @@
   .btn-primary:hover { box-shadow: 0 8px 26px -4px rgba(124,58,237,.8), 0 0 22px -2px rgba(124,58,237,.5); }
   .seg-btn.active { box-shadow: var(--shadow-sm), 0 0 12px -2px rgba(99,102,241,.5); }
   .brand-icon { box-shadow: 0 0 18px -2px rgba(124,58,237,.6); }
+  /* settings bar (full width, top) */
+  .settings-bar{ display:flex; gap:16px; align-items:flex-end; flex-wrap:wrap; background:var(--panel); border:1px solid var(--border); border-radius:var(--radius); padding:14px 16px; margin-bottom:18px; box-shadow:var(--shadow-sm); }
+  .sb-group{ display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap; }
+  .sb-provider{ flex:1; min-width:300px; }
+  .sb-field{ display:flex; flex-direction:column; gap:4px; }
+  .sb-field label{ margin:0; font-size:11px; color:var(--muted); font-weight:600; }
+  .sb-key{ flex:1; min-width:220px; }
+  .sb-key input, .sb-field select{ width:100%; }
+  .sb-field input[type=number]{ width:120px; }
+  .sb-showkey{ display:flex; align-items:center; gap:5px; font-size:12px; color:var(--muted); margin:0 0 9px; cursor:pointer; white-space:nowrap; }
+  .sb-showkey input{ width:14px; height:14px; accent-color:var(--accent); }
+  .settings-bar .fee-title{ align-self:center; margin-bottom:9px; }
+  @media (max-width: 940px){ .sb-provider{ min-width:100%; } }
+
   /* auth */
   #loginOverlay{ position:fixed; inset:0; z-index:1000; display:flex; align-items:center; justify-content:center; background:rgba(8,11,20,.75); backdrop-filter:blur(8px); }
   .login-card{ width:340px; max-width:90vw; background:var(--panel); border:1px solid var(--border); border-radius:16px; padding:26px; box-shadow:var(--shadow-md); text-align:center; }
@@ -392,6 +406,24 @@
     </div>
   </div>
 
+  <div class="settings-bar">
+    <div class="sb-group sb-provider">
+      <div class="sb-field"><label for="provider">Sağlayıcı</label><select id="provider"><option value="ors">OpenRouteService (ücretsiz)</option><option value="mapbox">Mapbox</option><option value="here">HERE (ilk programının motoru)</option></select></div>
+      <div class="sb-field sb-key"><label for="apiKey" id="apiKeyLabel">API Key</label><input type="password" id="apiKey" placeholder="eyJ... (ORS anahtarı)"></div>
+      <label class="sb-showkey"><input type="checkbox" id="showKey"> göster</label>
+    </div>
+    <button class="btn-export" id="exportBtn" disabled>
+      <svg class="icon" viewBox="0 0 24 24" stroke="#fff"><path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2z"/><path d="M9 13l2 2 2-3"/></svg>
+      Excel'e Aktar
+    </button>
+    <div class="sb-group">
+      <div class="fee-title"><span class="badge"><svg class="icon" viewBox="0 0 24 24" style="width:16px;height:16px"><circle cx="12" cy="12" r="9.2"/><text x="12" y="16" font-size="11" font-weight="800" text-anchor="middle" stroke="none" fill="currentColor">€</text></svg></span>Ücret</div>
+      <div class="sb-field"><label for="costPerKm">Km ücret (€)</label><input type="number" id="costPerKm" value="0.35" step="0.01" min="0"></div>
+      <div class="sb-field"><label for="stopMinutes">Durak (dk)</label><input type="number" id="stopMinutes" value="15" step="1" min="0"></div>
+    </div>
+    <p class="hint" id="providerHint" style="flex-basis:100%;margin:2px 0 0">Farklı sağlayıcılarla deneyip en iyisini seçebilirsin. Her sağlayıcının anahtarı ayrı saklanır. HERE genelde en kısa km'yi verir. Anahtarlar tarayıcıda saklanır.</p>
+  </div>
+
   <div class="main-grid">
     <!-- LEFT: Rota & Duraklar -->
     <div class="panel rd-panel" id="rdPanel">
@@ -477,25 +509,6 @@
 
     <!-- RIGHT: Ücret tab + Harita -->
     <div class="col-right">
-      <div class="fee-bar">
-        <button class="btn-export" id="exportBtn" disabled>
-          <svg class="icon" viewBox="0 0 24 24" stroke="#fff"><path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2z"/><path d="M9 13l2 2 2-3"/></svg>
-          Excel'e Aktar
-        </button>
-        <div class="fee-title">
-          <span class="badge"><svg class="icon" viewBox="0 0 24 24" style="width:16px;height:16px"><circle cx="12" cy="12" r="9.2"/><text x="12" y="16" font-size="11" font-weight="800" text-anchor="middle" stroke="none" fill="currentColor">€</text></svg></span>
-          Ücret Ayarları
-        </div>
-        <div class="fee-field">
-          <label for="costPerKm">Km başına ücret (€)</label>
-          <input type="number" id="costPerKm" value="0.35" step="0.01" min="0">
-        </div>
-        <div class="fee-field">
-          <label for="stopMinutes">Durak süresi (dk)</label>
-          <input type="number" id="stopMinutes" value="15" step="1" min="0">
-        </div>
-      </div>
-
       <div class="panel">
         <div id="map">
           <div class="empty-state">
@@ -525,44 +538,6 @@
     </div>
   </div>
 
-  <!-- BOTTOM: collapsible settings (only API) -->
-  <div class="form-wrap" id="formWrap">
-    <button class="form-toggle" id="formToggle" aria-expanded="true">
-      <span class="badge"><svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"/></svg></span>
-      <span class="ft-title">Ayarlar</span>
-      <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
-    </button>
-    <div class="form-body" id="formBody">
-      <div class="panel">
-        <div class="panel-head">
-          <span class="badge"><svg class="icon" viewBox="0 0 24 24"><circle cx="7.5" cy="12" r="4.2"/><path d="M11.3 12H21M17 12v3.2M20 12v3.2"/></svg></span>
-          <h2>Rota Sağlayıcı &amp; API Anahtarı</h2>
-        </div>
-        <label for="provider">Sağlayıcı</label>
-        <select id="provider">
-          <option value="ors">OpenRouteService (ücretsiz)</option>
-          <option value="mapbox">Mapbox</option>
-          <option value="here">HERE (ilk programının motoru)</option>
-        </select>
-        <label for="apiKey" id="apiKeyLabel">API Key</label>
-        <input type="password" id="apiKey" placeholder="eyJ... (ORS anahtarı)">
-        <div class="checkbox-row">
-          <input type="checkbox" id="showKey">
-          <label for="showKey">Anahtarı göster</label>
-        </div>
-        <p class="hint" id="providerHint">Aynı adresleri farklı sağlayıcılarla deneyip en iyisini seçebilirsin. Her sağlayıcının anahtarı ayrı saklanır. HERE genelde en kısa km'yi verir.</p>
-        <details>
-          <summary>Ücretsiz anahtar nereden alınır?</summary>
-          <ol>
-            <li><b>OpenRouteService:</b> openrouteservice.org/dev → Standard (ücretsiz) token.</li>
-            <li><b>Mapbox:</b> account.mapbox.com → "Default public token" (pk. ile başlar, kart gerekmez).</li>
-            <li><b>HERE:</b> platform.here.com → ücretsiz plan → REST API key.</li>
-          </ol>
-          <p>Harita ücretsiz OpenStreetMap ile çalışır. Anahtarlar yalnızca tarayıcında saklanır (localStorage).</p>
-        </details>
-      </div>
-    </div>
-  </div>
 </div>
 
 <script>
@@ -584,8 +559,6 @@
     stopCountHint: document.getElementById('stopCountHint'),
     fixBtn: document.getElementById('fixBtn'),
     formStopCount: document.getElementById('formStopCount'),
-    formWrap: document.getElementById('formWrap'),
-    formToggle: document.getElementById('formToggle'),
     rdPanel: document.getElementById('rdPanel'),
     rdToggle: document.getElementById('rdToggle'),
     failPanel: document.getElementById('failPanel'),
@@ -826,10 +799,6 @@
   }
   els.provider.addEventListener('change', () => { saveProviderKey(); selectedProvider = els.provider.value; applyProviderUI(); });
   els.apiKey.addEventListener('change', saveProviderKey);
-  els.formToggle.addEventListener('click', () => {
-    const collapsed = els.formWrap.classList.toggle('collapsed');
-    els.formToggle.setAttribute('aria-expanded', String(!collapsed));
-  });
   els.rdToggle.addEventListener('click', () => {
     const collapsed = els.rdPanel.classList.toggle('collapsed');
     els.rdToggle.setAttribute('aria-expanded', String(!collapsed));
@@ -1401,7 +1370,7 @@
       else failures.push({ order: o, reason: o.address ? 'Adres sütununa telefon/sayı girilmiş görünüyor (harf içermiyor). Doğru adresi yaz.' : 'Adres sütunu boş.' });
     });
 
-    if (!apiKey) { setStatus('Önce ' + P.name + ' API anahtarını gir (alttaki "Ayarlar" bölümü).', 'bad'); els.formWrap.classList.remove('collapsed'); return; }
+    if (!apiKey) { setStatus('Önce ' + P.name + ' API anahtarını (üstteki bölüm) gir.', 'bad'); return; }
     if (!startAddr) { setStatus('Başlangıç adresi gerekli.', 'bad'); return; }
     if (!endAddr) { setStatus('Bitiş adresi gerekli (ya da "Bitiş = Başlangıç").', 'bad'); return; }
     if (validOrders.length === 0) { renderFailures(failures); setStatus('Geçerli adres bulunamadı — aşağıdaki "Bulunamayan Adresler" bölümüne bak.', 'bad'); return; }
