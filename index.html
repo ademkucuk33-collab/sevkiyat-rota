@@ -612,10 +612,10 @@
     if (!res.ok) throw new Error('Mesafe matrisi alınamadı (ORS ' + res.status + '). Anahtar geçerli mi / günlük limit aşıldı mı?');
     return res.json();
   }
-  async function orsDirections(key, coordsLngLat) {
+  async function orsDirections(key, coordsLngLat, pref) {
     // radiuses: -1 lets ORS snap each waypoint to the nearest road with no distance cap
     // (avoids error 2010 when a geocoded point is just outside the routing graph).
-    const body = { coordinates: coordsLngLat, radiuses: coordsLngLat.map(() => -1), continue_straight: false };
+    const body = { coordinates: coordsLngLat, radiuses: coordsLngLat.map(() => -1), continue_straight: false, preference: pref === 'short' ? 'shortest' : 'fastest' };
     const res = await orsFetch(ORS_BASE + '/v2/directions/driving-car/geojson', { method: 'POST', headers: { 'Authorization': key, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     if (!res.ok) throw new Error('Rota çizimi alınamadı (ORS ' + res.status + ').');
     return res.json();
@@ -702,12 +702,12 @@
     for (let i = 0; i < m.numOrigins; i++) { dist.push([]); time.push([]); for (let j = 0; j < ND; j++) { const idx = i * ND + j; const dd = m.distances ? m.distances[idx] : null, tt = m.travelTimes ? m.travelTimes[idx] : null; dist[i][j] = dd == null ? Infinity : dd; time[i][j] = tt == null ? Infinity : tt; } }
     onProgress(1, 1); return { dist, time };
   }
-  async function hereGeometry(key, nodeSeq) {
-    const CH = 15, lines = [];
+  async function hereGeometry(key, nodeSeq, pref) {
+    const CH = 15, lines = [], mode = pref === 'short' ? 'short' : 'fast';
     for (let s = 0; s < nodeSeq.length - 1; s += CH - 1) {
       const chunk = nodeSeq.slice(s, Math.min(s + CH, nodeSeq.length)); if (chunk.length < 2) break;
       const o = chunk[0], dest = chunk[chunk.length - 1], vias = chunk.slice(1, -1);
-      let url = 'https://router.hereapi.com/v8/routes?transportMode=car&origin=' + o.lat + ',' + o.lng + '&destination=' + dest.lat + ',' + dest.lng + '&return=polyline&apiKey=' + key;
+      let url = 'https://router.hereapi.com/v8/routes?transportMode=car&routingMode=' + mode + '&origin=' + o.lat + ',' + o.lng + '&destination=' + dest.lat + ',' + dest.lng + '&return=polyline&apiKey=' + key;
       vias.forEach(v => { url += '&via=' + v.lat + ',' + v.lng; });
       const res = await orsFetch(url); if (!res.ok) throw new Error('HERE çizim hatası (' + res.status + ').');
       const d = await res.json(); if (!d.routes || !d.routes[0]) throw new Error('HERE rota bulamadı.');
@@ -1055,13 +1055,13 @@
 
   // ---- Directions ----
   // Get the driving polyline geometry from ORS (chunked at 50 coordinates), returned as arrays of [lat,lng].
-  async function fetchGeometry(key, nodeSeq) {
+  async function fetchGeometry(key, nodeSeq, pref) {
     const coords = nodeSeq.map(n => [n.lng, n.lat]);
     const CH = 50; const lines = [];
     for (let s = 0; s < coords.length - 1; s += CH - 1) {
       const chunk = coords.slice(s, Math.min(s + CH, coords.length));
       if (chunk.length < 2) break;
-      const gj = await orsDirections(key, chunk);
+      const gj = await orsDirections(key, chunk, pref);
       lines.push(gj.features[0].geometry.coordinates.map(c => [c[1], c[0]]));
     }
     return lines;
@@ -1135,9 +1135,10 @@
       // Draw the actual road polyline via ORS (only call that draws the map; cached per order).
       const nodeSeq = [state.startNode, ...order.map(i => state.stopNodes[i]), state.endNode];
       setProgress(true, 84, 'Rota çiziliyor...');
-      const dkey = order.join(',');
+      const pref = state.activeMode === 'distance' ? 'short' : 'fast'; // en kısa süre → otoban (fast), en kısa mesafe → kestirme (short)
+      const dkey = pref + '|' + order.join(',');
       let geoLines = state.dirCache[dkey];
-      if (!geoLines) { geoLines = await PROVIDERS[state.provider].geometry(state.key, nodeSeq); state.dirCache[dkey] = geoLines; }
+      if (!geoLines) { geoLines = await PROVIDERS[state.provider].geometry(state.key, nodeSeq, pref); state.dirCache[dkey] = geoLines; }
       drawRoute(geoLines, nodeSeq);
       const totalKm = totalMeters / 1000; const stopMinutes = parseFloat(els.stopMinutes.value) || 0;
       const totalTimeSeconds = totalSec + order.length * stopMinutes * 60;
