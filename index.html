@@ -1360,8 +1360,11 @@
       const tick = () => setProgress(true, Math.round((++doneG / totalG) * 35), 'Adresler konumlandırılıyor (' + doneG + '/' + totalG + ')...');
 
       let startNode, endNode;
-      try { startNode = await geocodeCached(prov, apiKey, startAddr); tick(); } catch (e) { throw new Error('Başlangıç adresi bulunamadı: ' + startAddr + (e && e.status === 'REQUEST_DENIED' ? ' (API anahtarı geçersiz?)' : '')); }
-      if (roundTrip) { endNode = startNode; } else { try { endNode = await geocodeCached(prov, apiKey, endAddr); tick(); } catch (e) { throw new Error('Bitiş adresi bulunamadı: ' + endAddr); } }
+      const geoErrMsg = (label, addr, e) => e && e.status === 'ZERO_RESULTS'
+        ? label + ' adresi bulunamadı: "' + addr + '" — daha net yaz (sokak + posta kodu + şehir).'
+        : label + ' adresi alınamadı: ' + (e && e.message ? e.message : 'ağ/limit hatası') + ' — birkaç saniye sonra tekrar dene.';
+      try { startNode = await geocodeCached(prov, apiKey, startAddr); tick(); } catch (e) { throw new Error(geoErrMsg('Başlangıç', startAddr, e)); }
+      if (roundTrip) { endNode = startNode; } else { try { endNode = await geocodeCached(prov, apiKey, endAddr); tick(); } catch (e) { throw new Error(geoErrMsg('Bitiş', endAddr, e)); } }
 
       // Fault-tolerant stop geocoding: a bad address is skipped (recorded), not fatal.
       const stopNodes = [], stopInfo = [];
