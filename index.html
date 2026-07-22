@@ -311,6 +311,10 @@
   .settings-bar .fee-title{ align-self:center; margin-bottom:9px; }
   @media (max-width: 940px){ .sb-provider{ min-width:100%; } }
 
+  /* shared-route viewer mode */
+  body.viewer .settings-bar, body.viewer #startAddr, body.viewer #endAddrWrap, body.viewer #stops, body.viewer #fixBtn, body.viewer #clearBtn, body.viewer #shareBtn, body.viewer #calcBtn, body.viewer #status, body.viewer #progressWrap, body.viewer #addStopBox, body.viewer #stopCountHint, body.viewer #providerHint, body.viewer label[for=startAddr], body.viewer label[for=stops], body.viewer .checkbox-row, body.viewer .seg-wrap, body.viewer details, body.viewer .col-resizer { display:none !important; }
+  body.viewer .urow{ display:block; padding:8px 4px; border-bottom:1px solid var(--border-soft); font-size:13px; }
+
   /* profile / avatar */
   .avatar-btn{ width:34px; height:34px; border-radius:50%; border:1.5px solid var(--border); background:var(--accent-light); color:var(--accent); font-weight:800; font-size:13px; cursor:pointer; overflow:hidden; display:flex; align-items:center; justify-content:center; padding:0; }
   .avatar-btn:hover{ border-color:var(--accent); }
@@ -490,6 +494,14 @@
       <button class="btn-fix" id="fixBtn" type="button" title="Tarihle başlamayan (alta kaymış) satırları bir üstteki siparişe TAB ile birleştirir">
         <svg class="icon" viewBox="0 0 24 24" style="width:15px;height:15px"><path d="M4 12h6M4 6h10M4 18h8"/><path d="M15 15l3 3 4-5"/></svg>
         Satırları Otomatik Düzelt
+      </button>
+      <button class="btn-fix" id="clearBtn" type="button" title="Tüm adresleri temizle">
+        <svg class="icon" viewBox="0 0 24 24" style="width:15px;height:15px"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14M10 11v6M14 11v6"/></svg>
+        Listeyi Temizle
+      </button>
+      <button class="btn-fix" id="shareBtn" type="button" title="Oluşturulan rotayı görüntüleme linki olarak paylaş" disabled>
+        <svg class="icon" viewBox="0 0 24 24" style="width:15px;height:15px"><circle cx="18" cy="5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="19" r="2.5"/><path d="M8.2 10.8l7.6-4.6M8.2 13.2l7.6 4.6"/></svg>
+        Rotayı Paylaş
       </button>
       <p class="hint">İpucu: Bu alanda <b>Tab</b> tuşu sütun ayıracı (tab) ekler — böylece bölünmüş satırları elle de hizalayabilirsin.</p>
 
@@ -892,6 +904,34 @@
     const fixed = beforeCount - merged.length;
     setStatus(fixed > 0 ? ('✓ ' + fixed + ' bölünmüş satır birleştirildi.') : 'Düzeltilecek bölünmüş satır yok — her sipariş zaten tek satırda.', fixed > 0 ? 'ok' : 'warn');
   });
+  document.getElementById('clearBtn').addEventListener('click', () => { els.stops.value = ''; updateStopCountHint(); setStatus('Liste temizlendi.', 'warn'); });
+  document.getElementById('shareBtn').addEventListener('click', () => {
+    if (!state) { setStatus('Önce rota hesapla.', 'bad'); return; }
+    const order = getActiveOrder();
+    const pack = { v: 1, km: els.kpiKm.textContent, sure: els.kpiTotalTime.textContent, ucret: els.kpiCost.textContent,
+      st: [state.startNode.lat, state.startNode.lng, state.startText], en: [state.endNode.lat, state.endNode.lng, state.endText],
+      p: order.map(i => { const n = state.stopNodes[i], f = state.stopInfo ? state.stopInfo[i] : null; return [n.lat, n.lng, n.formatted || n.original, f ? f.customer : '', f && f.products ? f.products.map(x => x.name + (x.qty ? ' x' + x.qty : '')).join(', ') : '', f ? f.phone : '', f ? f.date : '']; }) };
+    const url = location.origin + location.pathname + '#r=' + btoa(unescape(encodeURIComponent(JSON.stringify(pack))));
+    if (navigator.clipboard) navigator.clipboard.writeText(url);
+    prompt('Paylaşım linki (kopyalandı) — karşı taraf giriş yapmadan rotayı görür:', url);
+  });
+  function renderSharedView() {
+    let data; try { data = JSON.parse(decodeURIComponent(escape(atob(location.hash.slice(3))))); } catch (e) { return; }
+    if (!data || data.v !== 1) return;
+    document.body.classList.add('viewer');
+    ensureMap(); setTimeout(() => leafletMap && leafletMap.invalidateSize(), 200);
+    const start = { lat: data.st[0], lng: data.st[1], formatted: data.st[2] }, end = { lat: data.en[0], lng: data.en[1], formatted: data.en[2] };
+    const stops = data.p.map(a => ({ lat: a[0], lng: a[1], formatted: a[2], customer: a[3], products: a[4], phone: a[5], date: a[6] }));
+    const nodeSeq = [start, ...stops, end];
+    drawRoute([nodeSeq.map(n => [n.lat, n.lng])], nodeSeq);
+    els.kpis.style.display = 'grid';
+    els.kpiKm.textContent = data.km; els.kpiTotalTime.textContent = data.sure; els.kpiStops.textContent = String(stops.length); els.kpiCost.textContent = data.ucret;
+    let rows = '<p class="reorder-hint">📤 Paylaşılan rota — sadece görüntüleme</p>';
+    rows += `<div class="urow"><span><b>A</b> · Başlangıç · ${escapeHtml(start.formatted)}</span></div>`;
+    stops.forEach((s, i) => { const sub = [s.customer, s.products ? '📦 ' + s.products : '', s.phone, s.date].filter(Boolean).map(escapeHtml).join(' · '); rows += `<div class="urow"><span><b>${i + 1}</b> · ${escapeHtml(s.formatted)}${sub ? `<div class="addr-sub">${sub}</div>` : ''}</span></div>`; });
+    rows += `<div class="urow"><span><b>B</b> · Bitiş · ${escapeHtml(end.formatted)}</span></div>`;
+    els.resultsTable.innerHTML = rows;
+  }
 
   function setStatus(msg, kind) { els.status.textContent = msg; els.status.className = kind ? ('status-' + kind) : ''; }
   function setProgress(v, pct, label) { els.progressWrap.style.display = v ? 'block' : 'none'; if (pct != null) els.progressBar.style.width = pct + '%'; if (label != null) els.progressLabel.textContent = label; }
@@ -1455,7 +1495,7 @@
       const ok = await renderActive();
       renderFailures(failures);
       if (!ok) return; // renderActive already set an error status
-      els.exportBtn.disabled = false;
+      els.exportBtn.disabled = false; document.getElementById('shareBtn').disabled = false;
       els.addStopBox.style.display = 'block';
       const lowConf = [startNode, ...stopNodes].filter(n => typeof n.confidence === 'number' && n.confidence < 0.4).length;
       let warn = failures.length ? ' ⚠ ' + failures.length + ' adres atlandı — "Bulunamayan Adresler" bölümüne bak.' : '';
@@ -1468,6 +1508,7 @@
 
   updateStopCountHint();
   highlightMode();
+  if (location.hash.indexOf('#r=') === 0) renderSharedView();
 })();
 </script>
 
@@ -1475,6 +1516,7 @@
 // ---- Auth (client-side DEMO only — bypassable, not secure) ----
 (function(){
   const UKEY='sevkiyat-users-v1', SKEY='sevkiyat-session', $=id=>document.getElementById(id);
+  if(location.hash.indexOf('#r=')===0){ const ov=$('loginOverlay'); if(ov) ov.style.display='none'; const ab=$('authBar'); if(ab) ab.style.display='none'; return; }
   // Koda gömülü paylaşımlı hesaplar — linki alan herkeste çalışır. Yeni kullanıcı: buraya ekle + push.
   const DEFAULT_USERS = {
     admin:{pass:'admin1234',role:'admin'}
