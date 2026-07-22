@@ -919,18 +919,29 @@
     let data; try { data = JSON.parse(decodeURIComponent(escape(atob(location.hash.slice(3))))); } catch (e) { return; }
     if (!data || data.v !== 1) return;
     document.body.classList.add('viewer');
-    ensureMap(); setTimeout(() => leafletMap && leafletMap.invalidateSize(), 200);
+    ensureMap();
     const start = { lat: data.st[0], lng: data.st[1], formatted: data.st[2] }, end = { lat: data.en[0], lng: data.en[1], formatted: data.en[2] };
     const stops = data.p.map(a => ({ lat: a[0], lng: a[1], formatted: a[2], customer: a[3], products: a[4], phone: a[5], date: a[6] }));
     const nodeSeq = [start, ...stops, end];
-    drawRoute([nodeSeq.map(n => [n.lat, n.lng])], nodeSeq);
+    const redraw = () => { if (leafletMap) { leafletMap.invalidateSize(); drawRoute([nodeSeq.map(n => [n.lat, n.lng])], nodeSeq); } };
+    redraw(); [150, 500, 1000].forEach(t => setTimeout(redraw, t));
     els.kpis.style.display = 'grid';
     els.kpiKm.textContent = data.km; els.kpiTotalTime.textContent = data.sure; els.kpiStops.textContent = String(stops.length); els.kpiCost.textContent = data.ucret;
-    let rows = '<p class="reorder-hint">📤 Paylaşılan rota — sadece görüntüleme</p>';
+    let rows = '<p class="reorder-hint">📤 Paylaşılan rota — görüntüleme <button id="vwExport" class="btn-fix" type="button" style="margin-left:6px">Excel indir</button></p>';
     rows += `<div class="urow"><span><b>A</b> · Başlangıç · ${escapeHtml(start.formatted)}</span></div>`;
     stops.forEach((s, i) => { const sub = [s.customer, s.products ? '📦 ' + s.products : '', s.phone, s.date].filter(Boolean).map(escapeHtml).join(' · '); rows += `<div class="urow"><span><b>${i + 1}</b> · ${escapeHtml(s.formatted)}${sub ? `<div class="addr-sub">${sub}</div>` : ''}</span></div>`; });
     rows += `<div class="urow"><span><b>B</b> · Bitiş · ${escapeHtml(end.formatted)}</span></div>`;
     els.resultsTable.innerHTML = rows;
+    document.getElementById('vwExport').addEventListener('click', () => {
+      const rc = [['Sıra', 'Adres', 'Müşteri', 'Ürünler', 'Telefon', 'Tarih']];
+      rc.push(['A', start.formatted, '', '', '', '']);
+      stops.forEach((s, i) => rc.push([i + 1, s.formatted, s.customer, s.products, s.phone, s.date]));
+      rc.push(['B', end.formatted, '', '', '', '']);
+      rc.push([]); rc.push(['Toplam', data.km, data.sure, data.ucret]);
+      const csv = '﻿' + rc.map(r => r.map(csvCell).join(';')).join('\r\n');
+      const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
+      const a = document.createElement('a'); a.href = url; a.download = 'sevkiyat-rota.csv'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+    });
   }
 
   function setStatus(msg, kind) { els.status.textContent = msg; els.status.className = kind ? ('status-' + kind) : ''; }
