@@ -375,6 +375,8 @@
       <select id="newRole"><option value="user">Kullanıcı</option><option value="admin">Admin</option></select>
       <button id="addUserBtn" class="btn-add" style="width:auto;margin:0">Ekle</button>
     </div>
+    <button id="exportUsersBtn" class="ubtn" style="margin-top:12px">Kullanıcıları kod için kopyala</button>
+    <p class="uinfo">Herkeste çalışması için: kullanıcıları burada oluştur → "kod için kopyala" → çıkan metni bana ver, koda gömerim.</p>
   </div>
 </div>
 
@@ -1473,8 +1475,13 @@
 // ---- Auth (client-side DEMO only — bypassable, not secure) ----
 (function(){
   const UKEY='sevkiyat-users-v1', SKEY='sevkiyat-session', $=id=>document.getElementById(id);
-  let users; try{ users=JSON.parse(localStorage.getItem(UKEY)); }catch(e){}
-  if(!users||!Object.keys(users).length){ users={admin:{pass:'admin1234',role:'admin'}}; localStorage.setItem(UKEY,JSON.stringify(users)); }
+  // Koda gömülü paylaşımlı hesaplar — linki alan herkeste çalışır. Yeni kullanıcı: buraya ekle + push.
+  const DEFAULT_USERS = {
+    admin:{pass:'admin1234',role:'admin'}
+  };
+  let stored; try{ stored=JSON.parse(localStorage.getItem(UKEY)); }catch(e){}
+  let users = Object.assign({}, DEFAULT_USERS, (stored&&typeof stored==='object')?stored:{});
+  localStorage.setItem(UKEY,JSON.stringify(users));
   const save=()=>localStorage.setItem(UKEY,JSON.stringify(users));
   const cur=()=>{ const n=localStorage.getItem(SKEY); return n&&users[n]?{name:n,role:users[n].role}:null; };
   const esc=s=>{ const d=document.createElement('div'); d.textContent=s==null?'':s; return d.innerHTML; };
@@ -1508,6 +1515,7 @@
     $('userList').querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{ delete users[b.dataset.del]; save(); renderUsers(); });
     $('userList').querySelectorAll('[data-pw]').forEach(b=>b.onclick=()=>{ const np=prompt('Yeni şifre — '+b.dataset.pw+':'); if(np){ users[b.dataset.pw].pass=np; save(); renderUsers(); } });
   }
+  $('exportUsersBtn').addEventListener('click',()=>{ const out=JSON.stringify(users,null,4); navigator.clipboard&&navigator.clipboard.writeText(out); prompt('Bu metni bana ver (koda gömeceğim):', out); });
   $('adminBtn').addEventListener('click',()=>{ renderUsers(); $('adminModal').style.display='flex'; });
   $('adminClose').addEventListener('click',()=>{ $('adminModal').style.display='none'; });
   $('addUserBtn').addEventListener('click',()=>{ const n=$('newUser').value.trim(), p=$('newPass').value, r=$('newRole').value; if(!n||!p){ alert('Kullanıcı adı ve şifre gir.'); return; } if(users[n]){ alert('Bu kullanıcı zaten var.'); return; } users[n]={pass:p,role:r}; save(); $('newUser').value=''; $('newPass').value=''; renderUsers(); });
